@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Claims Anomaly Platform</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;700&family=Red+Hat+Mono:wght@400;500&family=Red+Hat+Text:wght@400;500;600&display=swap">
+<style>
+/* Layout: one wide animated architecture map (users | app VPC + PSC | EDP project), narration under it, then legend, rules, resources and access as reference sections. */
+:root{
+  --bg:#F2F5F8;
+  --surface:#FFFFFF;
+  --soft:#E8EDF2;
+  --ink:#14202B;
+  --muted:#56636F;
+  --line:#CBD4DD;
+  --edge:#9AA8B5;
+  --z-usr:#EAF2EA;
+  --z-app:#E9EFF7;
+  --z-edp:#F3EEE3;
+  --c-ui:#2E7A39;
+  --c-net:#0A7083;
+  --c-cmp:#3956C8;
+  --c-data:#956000;
+  --c-flow:#7E3EA3;
+  --c-gov:#AA2C54;
+  --code-bg:#EBF0F5;
+  --cm:#647280;
+  --f-display:'Red Hat Display','Segoe UI',system-ui,sans-serif;
+  --f-body:'Red Hat Text','Segoe UI',system-ui,sans-serif;
+  --f-mono:'Red Hat Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1218;--surface:#141C25;--soft:#1B2530;--ink:#E3E9EE;--muted:#97A4B1;--line:#2D3A47;--edge:#4C5B6A;
+    --z-usr:#121D16;--z-app:#121A24;--z-edp:#1C1A14;
+    --c-ui:#7ACF88;--c-net:#58C3D4;--c-cmp:#93A9FF;--c-data:#E6B35A;--c-flow:#C99AEA;--c-gov:#F08DAB;
+    --code-bg:#0A1016;--cm:#8795A3;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1218;--surface:#141C25;--soft:#1B2530;--ink:#E3E9EE;--muted:#97A4B1;--line:#2D3A47;--edge:#4C5B6A;
+  --z-usr:#121D16;--z-app:#121A24;--z-edp:#1C1A14;
+  --c-ui:#7ACF88;--c-net:#58C3D4;--c-cmp:#93A9FF;--c-data:#E6B35A;--c-flow:#C99AEA;--c-gov:#F08DAB;
+  --code-bg:#0A1016;--cm:#8795A3;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1360px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+main{display:flex;flex-direction:column;gap:52px}
+main>*{min-width:0}
+section{display:flex;flex-direction:column;gap:16px;min-width:0}
+h1,h2,h3{font-family:var(--f-display);line-height:1.2;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.8rem,4.2vw,2.6rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.45rem;font-weight:700}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+.lede{color:var(--muted);max-width:72ch}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--soft);padding:1px 5px;border-radius:4px}
+button{font-family:var(--f-body);color:var(--ink)}
+button:focus-visible{outline:2px solid var(--c-cmp);outline-offset:2px}
+.prose{max-width:76ch;display:flex;flex-direction:column;gap:10px}
+
+.head{display:flex;flex-direction:column;gap:12px;padding-bottom:24px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.chips li{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:13px;color:var(--muted)}
+.chips b{color:var(--ink);font-weight:600}
+
+/* flow picker and controls */
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font-size:14px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 15px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.ctrl{display:flex;gap:6px}
+.ctrl button{font-size:14px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;min-width:44px}
+.ctrl button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);min-width:88px}
+
+/* diagram */
+.stage{border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+.scroll{overflow-x:auto}
+#arch{display:block;width:100%;min-width:1040px;height:auto}
+.hint{display:none;font-size:12.5px;color:var(--muted);padding:8px 14px;border-top:1px solid var(--line)}
+@media (max-width:1060px){.hint{display:block}}
+
+.zone{stroke:var(--line);stroke-width:1}
+.zone.usr{fill:var(--z-usr)}
+.zone.app{fill:var(--z-app)}
+.zone.edp{fill:var(--z-edp);stroke-dasharray:6 4}
+.zlab{font:700 13px var(--f-display);fill:var(--ink)}
+.zsub{font:500 11px var(--f-body);fill:var(--muted)}
+
+.edge{fill:none;stroke:var(--edge);stroke-width:1.6;transition:opacity .2s}
+.edge.evt{stroke-dasharray:7 5}
+.edge.data{stroke-dasharray:2 4;stroke-linecap:round}
+.edge.on{stroke:var(--ink);stroke-width:2.8}
+.mk{fill:var(--edge)}
+.mk-on{fill:var(--ink)}
+.elab{font:500 10.5px var(--f-mono);fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+
+.node{transition:opacity .2s}
+.node rect.box{fill:var(--surface);stroke-width:1.3}
+.node.on rect.box{stroke:var(--ink);stroke-width:2.6}
+.ntitle{font:600 12.5px var(--f-body);fill:var(--ink)}
+.nsub{font:400 11px var(--f-body);fill:var(--muted)}
+.ntag{font:500 9.5px var(--f-mono);fill:var(--muted)}
+.strip-t{font:600 11.5px var(--f-body);fill:var(--ink)}
+.strip-s{font:400 10.5px var(--f-mono);fill:var(--muted)}
+.support rect{fill:none;stroke:var(--line);stroke-dasharray:4 3}
+.support text{font:400 11px var(--f-body);fill:var(--muted)}
+
+svg.flowing .node:not(.inflow){opacity:.32}
+svg.flowing .edge:not(.inflow){opacity:.28}
+svg.flowing .elab:not(.inflow){opacity:.35}
+
+.cat-ui{stroke:var(--c-ui);fill:var(--c-ui)}
+.cat-net{stroke:var(--c-net);fill:var(--c-net)}
+.cat-cmp{stroke:var(--c-cmp);fill:var(--c-cmp)}
+.cat-data{stroke:var(--c-data);fill:var(--c-data)}
+.cat-flow{stroke:var(--c-flow);fill:var(--c-flow)}
+.cat-gov{stroke:var(--c-gov);fill:var(--c-gov)}
+.node rect.box.cat-ui,.node rect.box.cat-net,.node rect.box.cat-cmp,.node rect.box.cat-data,.node rect.box.cat-flow,.node rect.box.cat-gov{fill:var(--surface)}
+.strip rect{fill-opacity:.1;stroke-width:1.3;stroke-dasharray:5 3}
+
+#packet{fill:var(--ink);stroke:var(--surface);stroke-width:2.5}
+#ring{fill:none;stroke:var(--ink);stroke-width:1.5;opacity:.5}
+
+/* narration */
+.narr{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px;border-top:1px solid var(--line)}
+@media (min-width:900px){.narr{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}}
+.now{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.now-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.where{font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:var(--soft);color:var(--ink)}
+.where.psc{background:var(--c-net);color:var(--surface)}
+.now h3{font-size:1.2rem}
+.now p{max-width:60ch}
+.steplist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:330px;overflow-y:auto}
+.steplist button{width:100%;text-align:left;display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:baseline;background:none;border:0;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:14px}
+.steplist button:hover{background:var(--soft)}
+.steplist button[aria-current="step"]{background:var(--soft);font-weight:600}
+.steplist .no{font:500 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* legend */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.lg{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.lg-h{display:flex;align-items:center;gap:8px;font-weight:600}
+.sw{width:12px;height:12px;border-radius:3px;flex:none}
+.sw.ui{background:var(--c-ui)}.sw.net{background:var(--c-net)}.sw.cmp{background:var(--c-cmp)}.sw.data{background:var(--c-data)}.sw.flow{background:var(--c-flow)}.sw.gov{background:var(--c-gov)}
+.lg ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.lg ul b{color:var(--ink);font-weight:600}
+.lines{display:flex;flex-wrap:wrap;gap:10px 24px;font-size:14px;align-items:center}
+.lines span{display:inline-flex;align-items:center;gap:8px}
+.lines svg{width:46px;height:12px;flex:none}
+.lines line{stroke:var(--ink);stroke-width:2}
+
+/* tables */
+.tablewrap{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow-x:auto}
+.rt{width:100%;border-collapse:collapse;font-size:14px}
+.rt th{text-align:left;font:600 11.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);background:var(--soft)}
+.rt td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.rt tr:last-child td{border-bottom:0}
+.rt td:first-child{font-weight:600}
+.rt tr.grp td{background:var(--soft);font:700 12px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);padding:7px 12px}
+.sub{display:block;font-size:12.5px;color:var(--muted);font-weight:400;margin-top:2px}
+@media (max-width:719px){
+  .tablewrap{border:0;background:none;overflow:visible}
+  .rt thead{display:none}
+  .rt,.rt tbody{display:flex;flex-direction:column;gap:10px}
+  .rt tr{display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  .rt tr.grp{background:none;border:0;padding:6px 0 0}
+  .rt tr.grp td{background:none;padding:0}
+  .rt td{display:block;border:0;padding:4px 0}
+  .rt td::before{content:attr(data-label);display:block;font:600 10.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .rt td:first-child::before{display:none}
+}
+
+/* rules */
+.kinds{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px}
+.kind{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.kind .eg{font-size:13.5px;background:var(--soft);border-radius:6px;padding:8px 10px}
+.kind .k-meta{font-size:12.5px;color:var(--muted)}
+.pill{display:inline-block;font:600 10.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border-radius:999px;align-self:flex-start}
+.pill.sync{background:var(--c-data);color:var(--surface)}
+.pill.app{background:var(--c-cmp);color:var(--surface)}
+.life{display:flex;flex-wrap:wrap;gap:6px;align-items:center;list-style:none;margin:0;padding:0}
+.life li{display:flex;align-items:center;gap:6px;font-size:14px}
+.life li span{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:600}
+.life li:not(:last-child)::after{content:"→";color:var(--muted)}
+.life-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px 20px;font-size:14px;color:var(--muted);list-style:none;margin:0;padding:0}
+.life-notes b{color:var(--ink)}
+.facts{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;max-width:80ch}
+.facts b{font-weight:600}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.two>*{min-width:0}
+
+.code{border:1px solid var(--line);border-radius:10px;background:var(--code-bg);overflow:hidden;min-width:0}
+.code-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-bottom:1px solid var(--line);font:500 12px var(--f-mono);color:var(--muted)}
+.copy{font-size:12px;font-weight:500;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 10px;cursor:pointer}
+pre{margin:0;padding:12px 14px;overflow-x:auto;font:12.5px/1.6 var(--f-mono);color:var(--ink);tab-size:2}
+pre .cm{color:var(--cm)}
+.foot{font-size:13px;color:var(--muted);max-width:76ch}
+
+/* model section */
+.lanes{display:flex;flex-direction:column;gap:14px}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.lane-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.lane-h h3{font-size:1.02rem}
+.lane-h span{font-size:13px;color:var(--muted)}
+.chain{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:26px}
+.chain li{position:relative;background:var(--soft);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;font-size:13.5px;min-width:0}
+.chain li b{font-size:14px}
+.chain li span{color:var(--muted)}
+.chain li:not(:last-child)::after{content:"→";position:absolute;right:-19px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
+@media (max-width:860px){
+  .chain{grid-template-columns:minmax(0,1fr);gap:22px}
+  .chain li:not(:last-child)::after{content:"↓";right:auto;left:18px;top:auto;bottom:-21px;transform:none}
+}
+.example{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}
+.ex{border:1px dashed var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px;background:var(--surface)}
+.ex .k{font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#opt{display:block;width:100%;min-width:940px;height:auto}
+#packet2{fill:var(--ink);stroke:var(--surface);stroke-width:2.5}
+#ring2{fill:none;stroke:var(--ink);stroke-width:1.5;opacity:.5}
+.badge-c{fill:var(--surface);stroke:var(--edge);stroke-width:1.2}
+.badge-t{font:600 10px var(--f-mono);fill:var(--muted)}
+.badge.on .badge-c{fill:var(--ink);stroke:var(--ink)}
+.badge.on .badge-t{fill:var(--bg)}
+.optsum{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px;border-top:1px solid var(--line)}
+@media (min-width:900px){.optsum{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr)}}
+.optsum h3{font-size:1.15rem}
+.optsum>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.facts3{display:flex;flex-wrap:wrap;gap:6px}
+.facts3 span{font-size:12.5px;background:var(--soft);border-radius:999px;padding:2px 10px}
+.facts3 b{font-weight:600}
+.pc h4{margin:0;font:700 12px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pc ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.rec{background:var(--surface);border:1.5px solid var(--ink);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.rec p{max-width:80ch}
+.vs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
+.vs .lg ul{color:var(--ink)}
+.vs .lg h4{margin:4px 0 0;font:700 12px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cmp td{min-width:150px}
+.cmp td:first-child{min-width:130px}
+.cmp th.reco{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="head">
+  <h1>Claims Anomaly Platform</h1>
+  <p class="lede">End-to-end design for finding claim anomalies in BigQuery and serving them to a React app in a separate VPC through Private Service Connect. It includes client-specific rules, suppressions and saved filters. Pick a flow to watch it move through the system.</p>
+  <ul class="chips" aria-label="Assumptions">
+    <li><b>10M</b> claims a day</li>
+    <li><b>12</b> detection runs a day</li>
+    <li><b>Private Service Connect</b> to Google APIs</li>
+    <li><b>Spring Boot</b> on GKE</li>
+    <li><b>React</b> UI</li>
+  </ul>
+</header>
+
+<main>
+
+<section aria-labelledby="flow-h">
+  <h2 id="flow-h">How it works</h2>
+  <div class="stage">
+    <div class="bar" style="padding:12px 14px;border-bottom:1px solid var(--line)">
+      <div class="tabs" role="group" aria-label="Choose a flow" id="tabs"></div>
+      <div class="ctrl">
+        <button type="button" id="prev" aria-label="Previous step">←</button>
+        <button type="button" id="play" class="primary">Pause</button>
+        <button type="button" id="next" aria-label="Next step">→</button>
+      </div>
+    </div>
+    <div class="scroll">
+      <svg id="arch" viewBox="0 0 1320 770" role="img" aria-label="Architecture: users reach an internal load balancer in the application VPC, which routes to the React UI, the Anomaly API and the Rules service on GKE, backed by Redis and Cloud SQL. Those services reach BigQuery and Pub/Sub in the EDP project only through a Private Service Connect endpoint. In the EDP project, claims load every two hours, Workflows starts Dataform detection, which reads client rules, writes anomalies and publishes a run-complete event."></svg>
+    </div>
+    <p class="hint">Scroll sideways to see the whole diagram.</p>
+    <div class="narr">
+      <div class="now" aria-live="polite">
+        <div class="now-meta"><span id="stepNo">Step 1 of 1</span><span class="where" id="stepWhere">App VPC</span></div>
+        <h3 id="stepTitle"></h3>
+        <p id="stepText"></p>
+      </div>
+      <ol class="steplist" id="steplist"></ol>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="learn-h">
+  <h2 id="learn-h">How a model trained on history flags new claims</h2>
+  <p class="lede">The model learns what normal looks like from months of past claims. Every 2 hours it scores the new claims against that learned normal. The one rule that matters: training and scoring use exactly the same feature code.</p>
+  <div class="lanes">
+    <div class="lane">
+      <div class="lane-h"><h3>Learn</h3><span>Weekly or monthly, on history</span></div>
+      <ol class="chain">
+        <li><b>Claims history</b><span>12 months, all clients. Known outages and confirmed incidents removed or labeled.</span></li>
+        <li><b>Build features</b><span>The same Dataform code that runs every 2 hours.</span></li>
+        <li><b>Fit the model</b><span>It learns normal patterns per client, drug class and pharmacy.</span></li>
+        <li><b>Set thresholds</b><span>Score the history and pick a cut-off per segment, for example the top 0.5%.</span></li>
+        <li><b>Save a version</b><span>Model, thresholds and feature list saved together.</span></li>
+      </ol>
+    </div>
+    <div class="lane">
+      <div class="lane-h"><h3>Score</h3><span>Every 2 hours, on new claims</span></div>
+      <ol class="chain">
+        <li><b>New window</b><span>About 830k claims.</span></li>
+        <li><b>Build features</b><span>Same code, so the model sees what it was trained on.</span></li>
+        <li><b>Score</b><span>Each claim and each client window gets a score against the learned normal.</span></li>
+        <li><b>Explain</b><span>Top reasons per flag, such as quantity far above this drug's norm.</span></li>
+        <li><b>Combine</b><span>With baselines and client rules into one severity.</span></li>
+      </ol>
+    </div>
+  </div>
+  <div class="example">
+    <div class="ex">
+      <span class="k">Claim level (example)</span>
+      <p>A claim for 240 tablets of a drug that, for this client, is filled at 30 to 90 tablets in 98% of history, at a pharmacy that has never filled it for them. The claim scores 0.97. Reasons: quantity against this drug's norm, new pharmacy and drug pair.</p>
+    </div>
+    <div class="ex">
+      <span class="k">Rolled up to the client (example)</span>
+      <p>In the 10:00 to 12:00 window, 3.2% of client C-4411's claims scored above threshold against a usual 0.4%. That raises a client-level anomaly. Drill-down lists the high-scoring claims, ranked by score.</p>
+    </div>
+  </div>
+  <ul class="facts">
+    <li><b>Two levels of model.</b> Claim-level models score every new claim and are trained on a sample, for example tens of millions of claims spread across clients and drug classes. Window-level models score each client's 2-hour totals and train on every past window.</li>
+    <li><b>Only scores are stored.</b> Claim scores keep the claim id, score and reasons, never claim contents, so there is still one copy of the claims.</li>
+    <li><b>New clients.</b> Until a client has about 8 weeks of history, score them with a model trained on similar clients.</li>
+    <li><b>Keeping it honest.</b> Watch feature drift each run and retrain on a schedule. A new version runs in shadow, scored but not shown, until it beats the live one on analyst-confirmed cases.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="opt-h">
+  <h2 id="opt-h">Model options to compare</h2>
+  <p class="lede">Six ways to use BigQuery ML, your custom anomaly library, or both. Each option shows training and scoring for one 2-hour run. In every option the app reads results the same way, from BigQuery through Private Service Connect, so the UI does not change.</p>
+  <div class="stage">
+    <div class="bar" style="padding:12px 14px;border-bottom:1px solid var(--line)">
+      <div class="tabs" role="group" aria-label="Choose an option" id="otabs"></div>
+      <div class="ctrl">
+        <button type="button" id="oprev" aria-label="Previous step">←</button>
+        <button type="button" id="oplay" class="primary">Pause</button>
+        <button type="button" id="onext" aria-label="Next step">→</button>
+      </div>
+    </div>
+    <div class="scroll">
+      <svg id="opt" viewBox="0 0 990 430" role="img" aria-label="Diagram of the selected model option, showing which steps run in the EDP project, which run in the application project, and which cross Private Service Connect."></svg>
+    </div>
+    <p class="hint">Scroll sideways to see the whole diagram.</p>
+    <div class="optsum">
+      <div>
+        <h3 id="oName"></h3>
+        <p id="oSummary"></p>
+        <div class="facts3" id="oFacts"></div>
+      </div>
+      <div class="pc"><h4>Good</h4><ul id="oPros"></ul></div>
+      <div class="pc"><h4>Watch out</h4><ul id="oCons"></ul></div>
+    </div>
+    <div class="narr">
+      <div class="now" aria-live="polite">
+        <div class="now-meta"><span id="oStepNo"></span><span class="where" id="oWhere"></span></div>
+        <h3 id="oTitle"></h3>
+        <p id="oText"></p>
+      </div>
+      <ol class="steplist" id="osteplist"></ol>
+    </div>
+  </div>
+
+  <div class="tablewrap">
+    <table class="rt cmp">
+      <thead><tr><th>Compare</th><th class="reco">Recommended mix</th><th>A · BigQuery ML</th><th>B · Library in BigQuery</th><th>C · Library on Vertex AI</th><th>D · Library on app GKE, features</th><th>E · Library on app GKE, raw claims</th></tr></thead>
+      <tbody>
+        <tr><td>Training runs</td><td data-label="Recommended mix">BigQuery ML and Vertex AI, both in EDP</td><td data-label="A · BigQuery ML">BigQuery, EDP</td><td data-label="B · Library in BigQuery">Vertex AI custom training, EDP</td><td data-label="C · Library on Vertex AI">Vertex AI custom training, EDP</td><td data-label="D · App GKE, features">GKE job, app project</td><td data-label="E · App GKE, raw claims">GKE job, app project</td></tr>
+        <tr><td>Scoring runs</td><td data-label="Recommended mix">Each detector's own engine, started by Workflows in EDP</td><td data-label="A · BigQuery ML">ML.DETECT_ANOMALIES in the Dataform run</td><td data-label="B · Library in BigQuery">ML.PREDICT on the imported ONNX model</td><td data-label="C · Library on Vertex AI">Vertex batch prediction</td><td data-label="D · App GKE, features">Scorer service on GKE</td><td data-label="E · App GKE, raw claims">Scorer service on GKE</td></tr>
+        <tr><td>Your custom library</td><td data-label="Recommended mix">Yes, through B or C per detector</td><td data-label="A · BigQuery ML">Not used</td><td data-label="B · Library in BigQuery">Yes, if it exports to ONNX</td><td data-label="C · Library on Vertex AI">Yes, any language in a container</td><td data-label="D · App GKE, features">Yes, as it is today</td><td data-label="E · App GKE, raw claims">Yes, as it is today</td></tr>
+        <tr><td>Claims leave EDP</td><td data-label="Recommended mix">No</td><td data-label="A · BigQuery ML">No</td><td data-label="B · Library in BigQuery">No</td><td data-label="C · Library on Vertex AI">No</td><td data-label="D · App GKE, features">No. Features and scores cross.</td><td data-label="E · App GKE, raw claims">Yes, every run and for training</td></tr>
+        <tr><td>Network and access</td><td data-label="Recommended mix">App reads results only</td><td data-label="A · BigQuery ML">App reads results only</td><td data-label="B · Library in BigQuery">App reads results only</td><td data-label="C · Library on Vertex AI">App reads results only</td><td data-label="D · App GKE, features">Feature reads and score writes through PSC. VPC-SC ingress for both.</td><td data-label="E · App GKE, raw claims">Claim reads through PSC. PHI controls on the app cluster.</td></tr>
+        <tr><td>Rough scoring time per run</td><td data-label="Recommended mix">Slowest enabled detector</td><td data-label="A · BigQuery ML">Minutes</td><td data-label="B · Library in BigQuery">Minutes</td><td data-label="C · Library on Vertex AI">10 to 20 minutes, mostly job start-up</td><td data-label="D · App GKE, features">Under 5 minutes</td><td data-label="E · App GKE, raw claims">5 to 15 minutes, mostly data transfer</td></tr>
+        <tr><td>Cost drivers</td><td data-label="Recommended mix">Sum of the engines you turn on</td><td data-label="A · BigQuery ML">BigQuery compute for training and scoring</td><td data-label="B · Library in BigQuery">Vertex training hours. Scoring is BigQuery.</td><td data-label="C · Library on Vertex AI">Vertex training and batch nodes every run</td><td data-label="D · App GKE, features">GKE nodes, small BigQuery reads</td><td data-label="E · App GKE, raw claims">BigQuery read bytes, larger GKE nodes</td></tr>
+        <tr><td>Explanations</td><td data-label="Recommended mix">Per detector</td><td data-label="A · BigQuery ML">Expected value and interval. Per-feature error with ML.RECONSTRUCT.</td><td data-label="B · Library in BigQuery">Whatever the model outputs. SHAP needs a separate step.</td><td data-label="C · Library on Vertex AI">Full SHAP or library explanations</td><td data-label="D · App GKE, features">Full SHAP or library explanations</td><td data-label="E · App GKE, raw claims">Full SHAP or library explanations</td></tr>
+        <tr><td>Who runs it</td><td data-label="Recommended mix">Data team runs the pipeline. ML team owns custom detectors.</td><td data-label="A · BigQuery ML">Data team</td><td data-label="B · Library in BigQuery">Data team. ML team builds models.</td><td data-label="C · Library on Vertex AI">ML team on Vertex</td><td data-label="D · App GKE, features">App team</td><td data-label="E · App GKE, raw claims">App team, plus compliance review</td></tr>
+        <tr><td>Best when</td><td data-label="Recommended mix">You want both engines side by side and to switch per detector</td><td data-label="A · BigQuery ML">Fast start. Seasonal and volume anomalies.</td><td data-label="B · Library in BigQuery">Library models export cleanly to ONNX</td><td data-label="C · Library on Vertex AI">Models can't export, or need heavy dependencies or GPUs</td><td data-label="D · App GKE, features">The app team must own models and can't deploy in EDP</td><td data-label="E · App GKE, raw claims">Rarely. Only if features truly can't be built in BigQuery.</td></tr>
+        <tr><td>Main risk</td><td data-label="Recommended mix">Registry and output contract must be built first</td><td data-label="A · BigQuery ML">Limited model types</td><td data-label="B · Library in BigQuery">Not every operator exports to ONNX</td><td data-label="C · Library on Vertex AI">Start-up time and one more service</td><td data-label="D · App GKE, features">Writes across the boundary. Two teams own one pipeline.</td><td data-label="E · App GKE, raw claims">PHI in the app cluster. Billions of rows pulled to train.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="where-h">
+  <h2 id="where-h">Run the pipeline in EDP or in the app project?</h2>
+  <div class="vs">
+    <div class="lg">
+      <div class="lg-h"><span class="sw data"></span>Run in the EDP project</div>
+      <h4>Good</h4>
+      <ul>
+        <li>Claims and history never leave EDP, so one governance boundary.</li>
+        <li>Compute sits next to 12 months of data. Features, training and reruns are just queries.</li>
+        <li>The app only reads results, so VPC-SC needs a read rule and nothing else.</li>
+        <li>Late data and backfills are cheap to rerun.</li>
+      </ul>
+      <h4>Watch out</h4>
+      <ul>
+        <li>The app team may not have deploy rights in EDP, so models ship through the data team's process.</li>
+        <li>Shares BigQuery capacity with other EDP workloads.</li>
+        <li>Your library must be packaged as a container or exported to ONNX.</li>
+      </ul>
+    </div>
+    <div class="lg">
+      <div class="lg-h"><span class="sw cmp"></span>Run in the app project</div>
+      <h4>Good</h4>
+      <ul>
+        <li>The app team owns the model end to end on GKE and Spring Boot it already runs.</li>
+        <li>Your library runs as it is, with your own release cadence.</li>
+        <li>Scoring can be very fast once features arrive.</li>
+      </ul>
+      <h4>Watch out</h4>
+      <ul>
+        <li>Features still have to be built in BigQuery, so the pipeline spans both projects anyway.</li>
+        <li>Every run reads and writes across PSC, and needs VPC-SC rules for both directions.</li>
+        <li>Pulling raw claims puts PHI in the app cluster and makes training pull billions of rows.</li>
+        <li>Two places to monitor when a run is late.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rec">
+    <h3>Recommendation</h3>
+    <p>Run the pipeline in EDP with pluggable detectors, the recommended mix above. Start with BigQuery ML for seasonal and volume baselines. Bring your custom library in through option B when its models export to ONNX, and option C when they don't. Keep the app a reader of results.</p>
+    <p>If the app team can't deploy into EDP or hand models over, use option D, which moves features and not claims. Avoid option E unless a model truly needs raw claims.</p>
+    <ol class="facts">
+      <li><b>Phase 1.</b> BigQuery ML forecast plus client rules go live. The detector registry and the shared scores table are in place from day one.</li>
+      <li><b>Phase 2.</b> Your library trains on Vertex AI and scores through B or C in shadow mode, compared against analyst decisions.</li>
+      <li><b>Phase 3.</b> With a few months of analyst labels, add claim-level scoring and a supervised model that re-ranks alerts. Promote whichever detectors win in shadow.</li>
+    </ol>
+  </div>
+
+  <h3>How to pick quickly</h3>
+  <ul class="facts">
+    <li><b>Does your library export to ONNX?</b> Yes, use B. No, use C.</li>
+    <li><b>Can models be deployed into EDP, by you or the data team?</b> No, use D.</li>
+    <li><b>Does any model need raw claims that can't be built as BigQuery features?</b> Only then consider E.</li>
+  </ul>
+
+  <h3>The contract every detector meets</h3>
+  <p class="lede">This is what lets BigQuery ML and your library run side by side. Each detector is a row in a registry, and every engine writes the same scores table.</p>
+  <div class="two">
+    <div class="code">
+      <div class="code-head"><span>What your library implements</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm"># Same four calls whatever the engine. Pseudo-interface.</span>
+fit(features_table, train_window, config)
+    -&gt; model_version, thresholds, feature_list
+
+score(features_table, model_version)
+    -&gt; rows in edp_anomaly.model_scores
+
+explain(features_table, model_version)
+    -&gt; top reasons for each flagged row
+
+export_onnx(model_version)          <span class="cm"># optional</span>
+    -&gt; gs://.../model.onnx           <span class="cm"># enables option B</span></pre>
+    </div>
+    <div class="code">
+      <div class="code-head"><span>Registry and shared scores table</span><button class="copy" type="button">Copy</button></div>
+<pre>CREATE TABLE edp_anomaly.detectors (
+  detector_id   STRING,
+  engine        STRING,  <span class="cm">-- BQML | ONNX_IN_BQ | VERTEX_BATCH | GKE</span>
+  granularity   STRING,  <span class="cm">-- CLAIM | CLIENT_WINDOW | CLIENT_PHARMACY</span>
+  model_version STRING,
+  feature_set   STRING,  <span class="cm">-- version of the feature code</span>
+  scope_clients ARRAY&lt;STRING&gt;,  <span class="cm">-- empty means all clients</span>
+  mode          STRING,  <span class="cm">-- LIVE | SHADOW | OFF</span>
+  weight        FLOAT64,
+  owner         STRING
+);
+
+CREATE TABLE edp_anomaly.model_scores (
+  run_id STRING, window_start TIMESTAMP,
+  detector_id STRING, model_version STRING,
+  granularity STRING, client_id STRING,
+  entity_id STRING,      <span class="cm">-- claim_id for CLAIM rows</span>
+  score FLOAT64, threshold FLOAT64, flagged BOOL,
+  reasons ARRAY&lt;STRUCT&lt;feature STRING, contribution FLOAT64&gt;&gt;,
+  shadow BOOL
+)
+PARTITION BY DATE(window_start)
+CLUSTER BY client_id, detector_id;</pre>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="lg-h">
+  <h2 id="lg-h">Tech stack legend</h2>
+  <p class="lede">Box outline color shows the kind of resource. Tags in the corner of a box name the runtime.</p>
+  <div class="legend">
+    <div class="lg"><div class="lg-h"><span class="sw ui"></span>Users and frontend</div><ul><li><b>React</b> with TypeScript, built to static files</li><li><b>Cloud Storage</b> bucket behind the load balancer</li><li>Analysts, rule authors and approvers in the browser</li><li>Alert channels: email, Teams, ServiceNow</li></ul></div>
+    <div class="lg"><div class="lg-h"><span class="sw net"></span>Network and security</div><ul><li><b>Internal Application Load Balancer</b></li><li><b>Identity-Aware Proxy</b> and <b>Cloud Armor</b></li><li><b>Private Service Connect</b> endpoint for Google APIs</li><li><b>Cloud DNS</b> private zone for googleapis.com</li></ul></div>
+    <div class="lg"><div class="lg-h"><span class="sw cmp"></span>Compute</div><ul><li><b>GKE</b> with Workload Identity</li><li><b>Spring Boot</b> services: Anomaly API, Rules service, Event consumer</li><li><b>Cloud Run job</b> for the rule publisher</li><li><b>Vertex AI</b> training and batch prediction for custom models</li><li><b>BigQuery ML</b> for forecasts, autoencoders and imported ONNX models</li></ul></div>
+    <div class="lg"><div class="lg-h"><span class="sw data"></span>Data stores</div><ul><li><b>BigQuery</b>: edp.claims, edp_anomaly, edp_rules</li><li><b>Cloud SQL for PostgreSQL</b>: rules, cases, saved views, audit</li><li><b>Memorystore for Redis</b>: feed cache</li><li><b>Cloud Storage</b> landing bucket</li></ul></div>
+    <div class="lg"><div class="lg-h"><span class="sw flow"></span>Orchestration and messaging</div><ul><li><b>Eventarc</b> trigger on load completion</li><li><b>Cloud Workflows</b> runs each detection cycle</li><li><b>Dataform</b> holds the detection SQL</li><li><b>Pub/Sub</b> topic anomaly-run-complete</li></ul></div>
+    <div class="lg"><div class="lg-h"><span class="sw gov"></span>Identity and governance</div><ul><li><b>Corporate IdP</b> for single sign-on</li><li><b>Authorized views</b> in edp_serving</li><li><b>Dataplex policy tags</b> to mask PHI</li><li><b>VPC Service Controls</b>, <b>Secret Manager</b>, audit logs</li></ul></div>
+  </div>
+  <div class="lines" aria-label="Line styles">
+    <span><svg viewBox="0 0 46 12" aria-hidden="true"><line x1="2" y1="6" x2="44" y2="6"></line></svg>Request and response</span>
+    <span><svg viewBox="0 0 46 12" aria-hidden="true"><line x1="2" y1="6" x2="44" y2="6" stroke-dasharray="7 5"></line></svg>Event or message</span>
+    <span><svg viewBox="0 0 46 12" aria-hidden="true"><line x1="2" y1="6" x2="44" y2="6" stroke-dasharray="2 4" stroke-linecap="round"></line></svg>Data read or written inside BigQuery</span>
+    <span><svg viewBox="0 0 46 12" aria-hidden="true"><circle cx="23" cy="6" r="5" fill="currentColor"></circle></svg>What is moving in the current step</span>
+  </div>
+</section>
+
+<section aria-labelledby="r-h">
+  <h2 id="r-h">Client rules and filters</h2>
+  <p class="lede">Clients get four kinds of configuration. Three change what detection produces, so they are copied to BigQuery for the run to read. The fourth only changes what someone sees in the app.</p>
+  <div class="kinds">
+    <div class="kind">
+      <span class="pill sync">Changes detection</span>
+      <h3>Threshold override</h3>
+      <p>Changes how sensitive the baseline is for one client and metric.</p>
+      <p class="eg">Example: client C-4411, alert on claim count only when the score is 5 or more and the window has at least 500 claims.</p>
+      <p class="k-meta">Stored in Cloud SQL, published to <code>edp_rules.client_rules</code>, used when scoring.</p>
+    </div>
+    <div class="kind">
+      <span class="pill sync">Changes detection</span>
+      <h3>Custom rule</h3>
+      <p>A client-specific condition that creates its own anomaly, on a window total or on individual claims.</p>
+      <p class="eg">Example: days supply over 30 on opioid agonists, 5 or more claims in one window, severity high, alert pharmacy ops.</p>
+      <p class="k-meta">Stored in Cloud SQL, published to <code>edp_rules.client_rules</code>, evaluated each run.</p>
+    </div>
+    <div class="kind">
+      <span class="pill sync">Changes detection</span>
+      <h3>Suppression</h3>
+      <p>Keeps known patterns from alerting. The hit is still recorded and marked suppressed, so nothing is lost.</p>
+      <p class="eg">Example: ignore claim-count spikes on days 1 to 3 of each month for client C-4411, until 31 Jan 2027.</p>
+      <p class="k-meta">Needs a reason and an end date. Published to <code>edp_rules.suppressions</code>.</p>
+    </div>
+    <div class="kind">
+      <span class="pill app">App only</span>
+      <h3>View filter</h3>
+      <p>Narrows the feed for one person or team. Detection and alerts are unchanged.</p>
+      <p class="eg">Example: high severity, specialty drugs, my clients only.</p>
+      <p class="k-meta">Saved views in Cloud SQL. The API applies them when it reads the feed.</p>
+    </div>
+  </div>
+
+  <h3>Rule lifecycle</h3>
+  <ol class="life" aria-label="Rule lifecycle">
+    <li><span>Draft</span></li><li><span>Backtested</span></li><li><span>Pending approval</span></li><li><span>Active</span></li><li><span>Retired</span></li>
+  </ol>
+  <ul class="life-notes">
+    <li><b>Backtested.</b> Runs against the last 28 days before anyone can approve it.</li>
+    <li><b>Pending approval.</b> A second person approves. Authors cannot approve their own rules.</li>
+    <li><b>Active.</b> Takes effect at the next run. Each run reads a snapshot of the rules, so a mid-run edit changes nothing.</li>
+    <li><b>Retired.</b> Kept for audit. Rolling back means reactivating an earlier version.</li>
+  </ul>
+
+  <h3>Each run applies them in this order</h3>
+  <ol class="facts">
+    <li>Roll up the new window per client and metric.</li>
+    <li>Score against the baseline, using the client's threshold overrides where they exist.</li>
+    <li>Evaluate custom rules for that client.</li>
+    <li>Mark hits that match an active suppression.</li>
+    <li>Merge duplicates, set severity, and record the rule id and version on every rule hit.</li>
+  </ol>
+
+  <div class="two">
+    <div class="code">
+      <div class="code-head"><span>What the rule builder sends (example)</span><button class="copy" type="button">Copy</button></div>
+<pre>{
+  "client_id": "C-4411",
+  "name": "Long days supply on opioid agonists",
+  "kind": "CLAIM",
+  "scope": { "drug_class": "OPIOID_AGONIST" },
+  "condition": { "field": "days_supply", "operator": "GT", "value": 30 },
+  "fire_when": { "min_hits_per_window": 5 },
+  "severity": "HIGH",
+  "notify": ["teams:pharmacy-ops"]
+}</pre>
+    </div>
+    <div class="code">
+      <div class="code-head"><span>How the run evaluates every claim rule</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm">-- One fixed query for all clients. Rules are rows, never SQL text,
+-- so a rule cannot change the query. Names are placeholders.</span>
+WITH hits AS (
+  SELECT r.rule_id, r.rule_version, r.min_hits, c.client_id,
+         r.operator, r.value,
+         CASE r.field                      <span class="cm">-- allow-listed fields only</span>
+           WHEN 'days_supply' THEN CAST(c.days_supply AS NUMERIC)
+           WHEN 'quantity'    THEN CAST(c.quantity    AS NUMERIC)
+           WHEN 'paid_amount' THEN c.paid_amount
+         END AS v
+  FROM edp.claims c
+  JOIN edp_rules.run_snapshot r            <span class="cm">-- rules pinned for this run</span>
+    ON r.client_id = c.client_id AND r.kind = 'CLAIM'
+  WHERE c.received_date = DATE(@window_start)
+    AND c.received_ts &gt;= @window_start
+    AND c.received_ts &lt;  TIMESTAMP_ADD(@window_start, INTERVAL 2 HOUR)
+    AND (r.scope_drug_class IS NULL OR c.drug_class  = r.scope_drug_class)
+    AND (r.scope_pharmacy   IS NULL OR c.pharmacy_id = r.scope_pharmacy)
+)
+SELECT rule_id, rule_version, client_id, COUNT(*) AS hit_count
+FROM hits
+WHERE CASE operator
+        WHEN 'GT'  THEN v &gt;  value  WHEN 'GTE' THEN v &gt;= value
+        WHEN 'LT'  THEN v &lt;  value  WHEN 'LTE' THEN v &lt;= value
+      END
+GROUP BY rule_id, rule_version, client_id, min_hits
+HAVING COUNT(*) &gt;= min_hits;
+<span class="cm">-- Only the count is stored. Drill-down re-applies the same rule
+-- version to list the claims, so claims are never copied.</span></pre>
+    </div>
+  </div>
+
+  <h3>Guardrails</h3>
+  <ul class="facts">
+    <li><b>No SQL from users.</b> Fields, operators and scope dimensions come from an allow-list the platform team owns. Window rules work the same way on the rollup metrics.</li>
+    <li><b>Access follows clients.</b> People can create rules only for clients they are entitled to see, checked in the Rules service.</li>
+    <li><b>Backtest cost is capped.</b> Preview runs a dry run first and sets a maximum bytes billed on the real query.</li>
+    <li><b>Limits keep runs predictable.</b> For example, at most 50 active rules per client, and suppressions no longer than 90 days.</li>
+    <li><b>Everything is versioned and audited.</b> Who changed what, who approved it, and which version produced each anomaly.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="inv-h">
+  <h2 id="inv-h">Resource inventory</h2>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Resource</th><th>Service</th><th>Job</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="3">Application project · App VPC</td></tr>
+        <tr><td>Load balancer</td><td data-label="Service">Internal Application Load Balancer, IAP, Cloud Armor</td><td data-label="Job">Single private entry. Signs users in and routes /, /api and /rules.</td></tr>
+        <tr><td>React UI</td><td data-label="Service">Cloud Storage backend bucket</td><td data-label="Job">Anomaly feed, drill-down, rule builder, approvals, cases.</td></tr>
+        <tr><td>Anomaly API</td><td data-label="Service">Spring Boot on GKE</td><td data-label="Job">Feed, drivers, claim drill-down, cases, saved views.</td></tr>
+        <tr><td>Rules service</td><td data-label="Service">Spring Boot on GKE</td><td data-label="Job">Rule and suppression CRUD, validation, backtest, approval.</td></tr>
+        <tr><td>Event consumer</td><td data-label="Service">Spring Boot on GKE</td><td data-label="Job">Pulls run-complete, clears cache, sends alerts.</td></tr>
+        <tr><td>Rule publisher</td><td data-label="Service">Cloud Run job, every 5 minutes and on approval</td><td data-label="Job">Copies approved rule versions to BigQuery with MERGE.</td></tr>
+        <tr><td>Feed cache</td><td data-label="Service">Memorystore for Redis</td><td data-label="Job">Anomaly feed per run id and client list. Disposable.</td></tr>
+        <tr><td>App database</td><td data-label="Service">Cloud SQL for PostgreSQL, private IP, HA</td><td data-label="Job">Source of truth for rules, suppressions, cases, saved views, audit.</td></tr>
+        <tr><td>PSC endpoint</td><td data-label="Service">Private Service Connect for Google APIs, Cloud DNS private zone</td><td data-label="Job">Only path to BigQuery and Pub/Sub. No public IPs, no VPC peering.</td></tr>
+        <tr><td>Platform</td><td data-label="Service">Secret Manager, Artifact Registry, Cloud Build, Cloud Logging and Monitoring</td><td data-label="Job">Secrets, images, CI/CD, logs and alerts.</td></tr>
+        <tr class="grp"><td colspan="3">EDP project</td></tr>
+        <tr><td>Landing</td><td data-label="Service">Cloud Storage bucket and BigQuery load job</td><td data-label="Job">Receives the existing 2-hour extract.</td></tr>
+        <tr><td><code>edp.claims</code></td><td data-label="Service">BigQuery table</td><td data-label="Job">Partitioned by day, clustered by client. Requires a partition filter.</td></tr>
+        <tr><td><code>edp_anomaly</code></td><td data-label="Service">BigQuery dataset</td><td data-label="Job">client_window_metrics, anomalies, anomaly_drivers, rule_hits, run_log.</td></tr>
+        <tr><td><code>edp_rules</code></td><td data-label="Service">BigQuery dataset</td><td data-label="Job">client_rules, suppressions, run_snapshot. Written only by the rule publisher.</td></tr>
+        <tr><td><code>edp_serving</code></td><td data-label="Service">BigQuery authorized views</td><td data-label="Job">The only objects the app can read. Masks PHI with policy tags.</td></tr>
+        <tr><td>Feature tables</td><td data-label="Service">BigQuery, built by Dataform</td><td data-label="Job">One versioned feature set used for both training and scoring.</td></tr>
+        <tr><td>Detectors and scores</td><td data-label="Service">BigQuery: edp_anomaly.detectors, model_scores</td><td data-label="Job">Which models run, in which mode, and every score they produce.</td></tr>
+        <tr><td>Models</td><td data-label="Service">BigQuery ML, Vertex AI training, batch prediction and Model Registry</td><td data-label="Job">Train on history and score each run. Vertex only when a custom model needs it.</td></tr>
+        <tr><td>Orchestration</td><td data-label="Service">Eventarc, Cloud Workflows, Dataform</td><td data-label="Job">Starts on load completion, checks volume, runs detection.</td></tr>
+        <tr><td>Run events</td><td data-label="Service">Pub/Sub topic with a subscription for the app</td><td data-label="Job">One message per run with ids and counts. No claim data.</td></tr>
+        <tr><td>Governance</td><td data-label="Service">Dataplex policy tags, data access audit logs, Cloud Monitoring</td><td data-label="Job">Column masking, who-read-what, late-run alerts.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="acc-h">
+  <h2 id="acc-h">Access and the PSC path</h2>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Service account</th><th>Used by</th><th>Permissions</th></tr></thead>
+      <tbody>
+        <tr><td>sa-anomaly-api</td><td data-label="Used by">Anomaly API</td><td data-label="Permissions">BigQuery Data Viewer on edp_serving, Job User on the app project, Cloud SQL Client</td></tr>
+        <tr><td>sa-rules</td><td data-label="Used by">Rules service</td><td data-label="Permissions">BigQuery Data Viewer on edp_serving for backtests, Job User, Cloud SQL Client</td></tr>
+        <tr><td>sa-rule-publisher</td><td data-label="Used by">Rule publisher</td><td data-label="Permissions">BigQuery Data Editor on edp_rules only, Job User, Cloud SQL Client</td></tr>
+        <tr><td>sa-event-consumer</td><td data-label="Used by">Event consumer</td><td data-label="Permissions">Pub/Sub Subscriber on the app's subscription</td></tr>
+        <tr><td>sa-detection</td><td data-label="Used by">Workflows and Dataform in EDP</td><td data-label="Permissions">Data Viewer on edp.claims and edp_rules, Data Editor on edp_anomaly, Pub/Sub Publisher on the topic</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="facts">
+    <li><b>DNS does the routing.</b> A private Cloud DNS zone points googleapis.com at the PSC endpoint, so the standard Java BigQuery and Pub/Sub clients work unchanged.</li>
+    <li><b>Everything in the app uses the VPC.</b> GKE nodes are in the VPC already. Set the Cloud Run job to Direct VPC egress for all traffic so it also goes through PSC.</li>
+    <li><b>With VPC Service Controls,</b> use the vpc-sc bundle on the endpoint and add an ingress rule for these service accounts from the app network to BigQuery and Pub/Sub.</li>
+    <li><b>The app never reads edp.claims directly.</b> The authorized views read it on the app's behalf, and the views decide which columns come back masked.</li>
+  </ul>
+</section>
+
+<p class="foot">Client ids, rule values and limits on this page are examples. Confirm PSC bundles, perimeter rules and roles with cloud security before building the access path.</p>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  var svg=document.getElementById("arch");
+  function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs){e.setAttribute(k,attrs[k]);}if(parent){parent.appendChild(e);}return e;}
+  function txt(parent,x,y,s,cls,anchor){var t=el("text",{x:x,y:y,"class":cls},parent);if(anchor){t.setAttribute("text-anchor",anchor);}t.textContent=s;return t;}
+
+  var defs=el("defs",{},svg);
+  [["mk","mk"],["mk-on","mk-on"]].forEach(function(m){
+    var mk=el("marker",{id:m[0],viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},defs);
+    el("path",{d:"M0,0 L10,5 L0,10 z","class":m[1]},mk);
+  });
+
+  /* zones */
+  el("rect",{x:4,y:10,width:184,height:750,rx:12,"class":"zone usr"},svg);
+  txt(svg,16,36,"People","zlab");
+  el("rect",{x:200,y:10,width:688,height:750,rx:12,"class":"zone app"},svg);
+  txt(svg,216,36,"Application project · App VPC","zlab");
+  txt(svg,216,54,"UI, services, cache, app database","zsub");
+  el("rect",{x:900,y:10,width:412,height:750,rx:12,"class":"zone edp"},svg);
+  txt(svg,916,36,"EDP project","zlab");
+  txt(svg,916,54,"BigQuery, detection, run events","zsub");
+
+  /* support bars */
+  var s1=el("g",{"class":"support"},svg);
+  el("rect",{x:216,y:700,width:520,height:44,rx:8},s1);
+  txt(s1,476,726,"Secret Manager · Artifact Registry · Cloud Build · Cloud Logging","","middle");
+  var s2=el("g",{"class":"support"},svg);
+  el("rect",{x:916,y:700,width:372,height:44,rx:8},s2);
+  txt(s2,1102,726,"Dataplex policy tags · Audit logs · Monitoring","","middle");
+
+  /* strips: load balancer and PSC */
+  function strip(id,x,y,w,h,cat,t1,t2,cy){
+    var g=el("g",{"class":"node strip","data-id":id},svg);
+    el("rect",{x:x,y:y,width:w,height:h,rx:8,"class":"cat-"+cat},g);
+    el("rect",{x:x,y:y,width:w,height:h,rx:8,"class":"box cat-"+cat,style:"fill:none"},g);
+    var cx=x+w/2;
+    var a=txt(g,cx-(t2?7:0),cy,t1,"strip-t","middle");a.setAttribute("transform","rotate(-90 "+(cx-(t2?7:0))+" "+cy+")");
+    if(t2){var b=txt(g,cx+10,cy,t2,"strip-s","middle");b.setAttribute("transform","rotate(-90 "+(cx+10)+" "+cy+")");}
+    return g;
+  }
+
+  var EDGES={
+    u_auth:{d:"M96,170 V134",k:"req",lab:[104,156,"SSO","start"]},
+    u_an_lb:{d:"M176,197 H216",k:"req"},
+    u_ad_lb:{d:"M176,287 H216",k:"req"},
+    lb_ui:{d:"M266,197 H286",k:"req"},
+    lb_api:{d:"M266,292 H286",k:"req"},
+    lb_rules:{d:"M266,402 H286",k:"req"},
+    api_redis:{d:"M496,292 H516",k:"req"},
+    api_sql:{d:"M450,324 V347 H580 V370",k:"req"},
+    rules_sql:{d:"M496,402 H516",k:"req"},
+    sql_pub:{d:"M626,434 V490",k:"req"},
+    cons_redis:{d:"M736,615 H752 V300 H736",k:"req"},
+    cons_notify:{d:"M516,627 H176",k:"evt",lab:[340,620,"alerts","middle"]},
+    x_api:{d:"M440,260 V244 H760 V452 H1180 V434",k:"req",lab:[826,446,"query","middle"]},
+    x_preview:{d:"M420,434 V470 H1240 V434",k:"req",lab:[826,486,"dry run","middle"]},
+    x_pub:{d:"M736,517 H916",k:"req",lab:[826,532,"MERGE","middle"]},
+    x_cons:{d:"M916,627 H736",k:"evt",lab:[826,621,"pull","middle"]},
+    e_src_land:{d:"M1096,107 H1108",k:"data"},
+    e_land_claims:{d:"M1198,134 V170",k:"data"},
+    e_claims_trig:{d:"M1108,202 H1096",k:"evt"},
+    e_trig_df:{d:"M1006,234 V270",k:"req"},
+    e_claims_df:{d:"M1160,234 V252 H1050 V270",k:"data"},
+    e_df_anom:{d:"M1096,307 H1108",k:"data"},
+    e_rules_df:{d:"M1006,490 V344",k:"data"},
+    e_serv_anom:{d:"M1198,370 V344",k:"data"},
+    e_serv_claims:{d:"M1288,400 H1302 V202 H1288",k:"data"},
+    e_df_pub:{d:"M1096,330 H1102 V627 H1096",k:"evt"}
+  };
+
+  var NODES=[
+    {id:"idp",x:16,y:80,w:160,h:54,c:"gov",t:"Corporate IdP",s:"SSO · OIDC or SAML",z:"usr"},
+    {id:"analyst",x:16,y:170,w:160,h:54,c:"ui",t:"Analyst",s:"Browser",z:"usr"},
+    {id:"admin",x:16,y:260,w:160,h:54,c:"ui",t:"Rule admin",s:"Author and approver",z:"usr"},
+    {id:"notify",x:16,y:600,w:160,h:54,c:"ui",t:"Alert channels",s:"Email · Teams · tickets",z:"usr"},
+    {id:"ui",x:286,y:170,w:210,h:54,c:"ui",t:"React UI",s:"Static files",tag:"GCS",z:"app"},
+    {id:"api",x:286,y:260,w:210,h:64,c:"cmp",t:"Anomaly API",s:"Feed · drill-down · cases",tag:"GKE",z:"app"},
+    {id:"rules",x:286,y:370,w:210,h:64,c:"cmp",t:"Rules service",s:"Build · backtest · approve",tag:"GKE",z:"app"},
+    {id:"redis",x:516,y:260,w:220,h:64,c:"data",t:"Memorystore Redis",s:"Feed cache by run id",z:"app"},
+    {id:"sql",x:516,y:370,w:220,h:64,c:"data",t:"Cloud SQL Postgres",s:"Rules · cases · views · audit",z:"app"},
+    {id:"publisher",x:516,y:490,w:220,h:54,c:"cmp",t:"Rule publisher",s:"Approved rules to BigQuery",tag:"RUN",z:"app"},
+    {id:"consumer",x:516,y:600,w:220,h:54,c:"cmp",t:"Event consumer",s:"Pub/Sub pull · alerts",tag:"GKE",z:"app"},
+    {id:"src",x:916,y:80,w:180,h:54,c:"data",t:"Claims source",s:"Existing 2-hour extract",z:"edp"},
+    {id:"landing",x:1108,y:80,w:180,h:54,c:"data",t:"GCS landing",s:"BigQuery load job",z:"edp"},
+    {id:"trigger",x:916,y:170,w:180,h:64,c:"flow",t:"Workflows",s:"Eventarc trigger",z:"edp"},
+    {id:"claims",x:1108,y:170,w:180,h:64,c:"data",t:"edp.claims",s:"Day partition · by client",tag:"BQ",z:"edp"},
+    {id:"dataform",x:916,y:270,w:180,h:74,c:"flow",t:"Dataform",s:"Rollup · score · rules",z:"edp"},
+    {id:"anomaly",x:1108,y:270,w:180,h:74,c:"data",t:"edp_anomaly",s:"Anomalies · drivers · runs",tag:"BQ",z:"edp"},
+    {id:"serving",x:1108,y:370,w:180,h:64,c:"gov",t:"edp_serving",s:"Authorized views · masking",tag:"BQ",z:"edp"},
+    {id:"rulesbq",x:916,y:490,w:180,h:64,c:"data",t:"edp_rules",s:"Rules · suppressions",tag:"BQ",z:"edp"},
+    {id:"pubsub",x:916,y:600,w:180,h:54,c:"flow",t:"Pub/Sub",s:"anomaly-run-complete",z:"edp"}
+  ];
+
+  /* draw edges under nodes */
+  var edgeLayer=el("g",{},svg);
+  var labelLayer=el("g",{},svg);
+  var nodeLayer=el("g",{},svg);
+  var edgeEls={},labEls={};
+  Object.keys(EDGES).forEach(function(id){
+    var e=EDGES[id];
+    edgeEls[id]=el("path",{d:e.d,"class":"edge "+e.k,"marker-end":"url(#mk)"},edgeLayer);
+  });
+
+  var nodeEls={};
+  nodeEls.lb=strip("lb",216,170,50,264,"net","Internal HTTPS LB · IAP · Cloud Armor",null,302);
+  nodeEls.psc=strip("psc",776,230,100,450,"net","Private Service Connect","googleapis.com → private IP",332);
+  nodeLayer.appendChild(nodeEls.lb);
+  nodeLayer.appendChild(nodeEls.psc);
+  var ZONE={lb:"app",psc:"psc"};
+
+  NODES.forEach(function(n){
+    ZONE[n.id]=n.z;
+    var g=el("g",{"class":"node","data-id":n.id},nodeLayer);
+    el("rect",{x:n.x,y:n.y,width:n.w,height:n.h,rx:8,"class":"box cat-"+n.c},g);
+    var ty=n.y+n.h/2-3, sy=n.y+n.h/2+13;
+    el("circle",{cx:n.x+14,cy:ty-4,r:4,"class":"cat-"+n.c},g);
+    txt(g,n.x+24,ty,n.t,"ntitle");
+    txt(g,n.x+24,sy,n.s,"nsub");
+    if(n.tag){txt(g,n.x+n.w-9,n.y+14,n.tag,"ntag","end");}
+    nodeEls[n.id]=g;
+  });
+
+  Object.keys(EDGES).forEach(function(id){
+    var e=EDGES[id];
+    if(e.lab){labEls[id]=txt(labelLayer,e.lab[0],e.lab[1],e.lab[2],"elab",e.lab[3]);}
+  });
+  /* labels sit above the PSC strip */
+  svg.appendChild(labelLayer);
+
+  var ring=el("circle",{id:"ring",r:11,cx:-50,cy:-50},svg);
+  var packet=el("circle",{id:"packet",r:6,cx:-50,cy:-50},svg);
+
+  /* flows */
+  var FLOWS=[
+    {id:"detect",name:"Detection run",steps:[
+      {p:"e_src_land",n:["src","landing"],t:"Claims arrive",d:"The existing feed lands the 2-hour extract in Cloud Storage, and a BigQuery load job picks it up."},
+      {p:"e_land_claims",n:["landing","claims"],t:"Load into claims",d:"About 830k rows append to today's partition of edp.claims."},
+      {p:"e_claims_trig",n:["claims","trigger"],t:"Load completes",d:"Eventarc sees the load job finish in the audit log and starts a Cloud Workflows run."},
+      {p:"e_trig_df",n:["trigger","dataform"],t:"Start detection",d:"Workflows compares the row count with the expected volume, then starts the Dataform workflow. A partial load waits."},
+      {p:"e_claims_df",n:["claims","dataform"],t:"Roll up the window",d:"Dataform reads only the new 2-hour window and writes one row per client and metric to the rollup."},
+      {p:"e_rules_df",n:["rulesbq","dataform"],t:"Load client rules",d:"Active rules, threshold overrides and suppressions are copied into a snapshot for this run, so an edit during the run changes nothing."},
+      {p:"e_df_anom",n:["dataform","anomaly"],t:"Write results",d:"Baseline anomalies, rule hits, drivers and the run log go to edp_anomaly. Suppressed hits are kept and marked."},
+      {p:"e_df_pub",n:["dataform","pubsub"],t:"Announce the run",d:"Workflows publishes run-complete with the run id, counts by severity and high-severity anomaly ids. No claim data."},
+      {p:"x_cons",n:["pubsub","psc","consumer"],t:"Pull through PSC",d:"The event consumer in the app VPC pulls the message from Pub/Sub through the PSC endpoint."},
+      {p:"cons_redis",n:["consumer","redis"],t:"Refresh the cache",d:"It deletes the feed cache keys for the previous run, so the next page load reads fresh results."},
+      {p:"cons_notify",n:["consumer","notify"],t:"Send alerts",d:"High-severity anomalies go to each client's alert channels, as set on their rules."}
+    ]},
+    {id:"dash",name:"Dashboard",steps:[
+      {p:"u_auth",n:["analyst","idp"],t:"Sign in",d:"IAP sends the analyst to the corporate IdP. Their group decides which clients they can see."},
+      {p:"u_an_lb",n:["analyst","lb"],t:"Reach the app",d:"Requests go to the internal load balancer. Cloud Armor and IAP check them first."},
+      {p:"lb_ui",n:["lb","ui"],t:"Load the UI",d:"The load balancer serves the React app from a Cloud Storage bucket."},
+      {p:"lb_api",n:["lb","api"],t:"Ask for the feed",d:"The UI calls /api/anomalies. The API works out the analyst's client list."},
+      {p:"api_redis",n:["api","redis"],t:"Check the cache",d:"The key is the run id plus the client list. A hit returns in milliseconds and BigQuery is not called."},
+      {p:"x_api",n:["api","psc","serving"],t:"Query BigQuery on a miss",d:"One parameterized query to edp_serving.v_anomalies. bigquery.googleapis.com resolves to the PSC endpoint, so it never leaves the private network."},
+      {p:"e_serv_anom",n:["serving","anomaly"],t:"View reads anomalies",d:"The authorized view reads edp_anomaly for the requested clients only."},
+      {p:"x_api",r:true,n:["serving","psc","api"],t:"Results come back",d:"Tens to hundreds of summary rows return. The API caches them until the next run."},
+      {p:"api_sql",n:["api","sql"],t:"Add case status and filters",d:"The API adds case status from Cloud SQL and applies the analyst's saved view, then the UI shows the feed."}
+    ]},
+    {id:"drill",name:"Drill-down",steps:[
+      {p:"lb_api",n:["lb","api"],t:"Open a driver",d:"The analyst opens an anomaly, then a driver such as one drug. The UI calls /api/anomalies/{id}/claims."},
+      {p:"x_api",n:["api","psc","serving"],t:"Send the drill-down query",d:"A fixed query template with parameters and a bytes cap. For a rule hit, the API rebuilds the condition from the stored rule version."},
+      {p:"e_serv_claims",n:["serving","claims"],t:"Read one slice",d:"The view reads one client's slice of one day partition. Policy tags mask member and prescriber ids."},
+      {p:"x_api",r:true,n:["serving","psc","api"],t:"Return masked rows",d:"Up to 200 rows come back through PSC. The app shows them and does not store them."},
+      {p:"api_sql",n:["api","sql"],t:"Record the decision",d:"Confirm or dismiss is saved with the anomaly id and the ids of claims the analyst flagged."}
+    ]},
+    {id:"rule",name:"New client rule",steps:[
+      {p:"u_ad_lb",n:["admin","lb"],t:"Open the rule builder",d:"A rule author picks a client and builds the rule in a form. There is no SQL editor."},
+      {p:"lb_rules",n:["lb","rules"],t:"Submit the rule",d:"The rule arrives as JSON: scope, field, operator, threshold, severity and alert channel."},
+      {p:null,n:["rules"],t:"Validate",d:"Fields and operators must be on the allow-list, values are type-checked, and the author must have access to the client."},
+      {p:"x_preview",n:["rules","psc","serving"],t:"Backtest",d:"A dry run checks the bytes first. Then the same evaluation SQL runs over the last 28 days through PSC."},
+      {p:"x_preview",r:true,n:["serving","psc","rules"],t:"See the impact",d:"The author sees how often the rule would have fired, for example 6 times in 28 days, with sample windows."},
+      {p:"rules_sql",n:["rules","sql"],t:"Save for approval",d:"Version 1 is stored in Cloud SQL as pending approval, with an audit entry."},
+      {p:"u_ad_lb",n:["admin","lb"],t:"A second person approves",d:"An approver who is not the author reviews the change and the backtest."},
+      {p:"rules_sql",n:["rules","sql"],t:"Mark approved",d:"Status changes to approved, effective from the next run."},
+      {p:"sql_pub",n:["sql","publisher"],t:"Pick up the approval",d:"The rule publisher finds approved versions that are not yet in BigQuery."},
+      {p:"x_pub",n:["publisher","psc","rulesbq"],t:"Publish to BigQuery",d:"MERGE into edp_rules.client_rules through PSC. This account can write to edp_rules and nothing else."},
+      {p:"e_rules_df",n:["rulesbq","dataform"],t:"Applied on the next run",d:"The next detection run reads the rule. Every hit records the rule id and version."}
+    ]},
+    {id:"supp",name:"Suppress or filter",steps:[
+      {p:"u_ad_lb",n:["admin","lb"],t:"Add a suppression",d:"From an anomaly or the rule screen, choose what to mute: a metric on certain days, a pharmacy, a drug, or one anomaly."},
+      {p:"lb_rules",n:["lb","rules"],t:"Require a reason and an end date",d:"The Rules service rejects a suppression without both. Broad ones, such as a whole metric, need a second approver."},
+      {p:"rules_sql",n:["rules","sql"],t:"Save with audit",d:"The suppression is saved in Cloud SQL with who added it and why."},
+      {p:"sql_pub",n:["sql","publisher"],t:"Pick it up",d:"The publisher finds the new suppression."},
+      {p:"x_pub",n:["publisher","psc","rulesbq"],t:"Publish to BigQuery",d:"MERGE into edp_rules.suppressions through PSC."},
+      {p:"e_rules_df",n:["rulesbq","dataform"],t:"Detection still records it",d:"The run still finds the hit and marks it suppressed. It does not alert or appear in the default feed, and it expires on its end date."},
+      {p:"u_an_lb",n:["analyst","lb"],t:"A view filter is different",d:"An analyst narrowing the feed, for example to high severity in one drug class, changes nothing in detection."},
+      {p:"lb_api",n:["lb","api"],t:"Filter request",d:"The UI sends the saved view id with the feed request."},
+      {p:"api_sql",n:["api","sql"],t:"Saved views stay in the app",d:"The filter lives in Cloud SQL and the API applies it to the cached feed."}
+    ]}
+  ];
+
+  var tabs=document.getElementById("tabs");
+  var list=document.getElementById("steplist");
+  var playBtn=document.getElementById("play");
+  var stepNo=document.getElementById("stepNo"),stepWhere=document.getElementById("stepWhere");
+  var stepTitle=document.getElementById("stepTitle"),stepText=document.getElementById("stepText");
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var st={f:0,i:0,playing:!reduce,raf:0,timer:0};
+
+  FLOWS.forEach(function(f,fi){
+    var b=document.createElement("button");
+    b.type="button";b.textContent=f.name;b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",function(){setFlow(fi);});
+    tabs.appendChild(b);
+  });
+
+  function whereOf(step){
+    if(step.p&&step.p.indexOf("x_")===0){return ["Through PSC",true];}
+    var z=ZONE[step.n[step.n.length-1]];
+    var zf=ZONE[step.n[0]];
+    if(zf==="usr"||z==="usr"){return ["People to app",false];}
+    if(z==="edp"&&zf==="edp"){return ["EDP project",false];}
+    return ["App VPC",false];
+  }
+
+  function setFlow(fi){
+    st.f=fi;
+    [].forEach.call(tabs.children,function(b,k){b.setAttribute("aria-pressed",String(k===fi));});
+    var f=FLOWS[fi];
+    var inN={},inE={};
+    f.steps.forEach(function(s){s.n.forEach(function(id){inN[id]=1;});if(s.p){inE[s.p]=1;}});
+    svg.classList.add("flowing");
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.toggle("inflow",!!inN[id]);});
+    Object.keys(edgeEls).forEach(function(id){edgeEls[id].classList.toggle("inflow",!!inE[id]);if(labEls[id]){labEls[id].classList.toggle("inflow",!!inE[id]);}});
+    list.innerHTML="";
+    f.steps.forEach(function(s,k){
+      var li=document.createElement("li");
+      var b=document.createElement("button");
+      b.type="button";
+      var no=document.createElement("span");no.className="no";no.textContent=String(k+1).padStart(2,"0");
+      var tt=document.createElement("span");tt.textContent=s.t;
+      b.appendChild(no);b.appendChild(tt);
+      b.addEventListener("click",function(){setPlaying(false);show(k,true);});
+      li.appendChild(b);list.appendChild(li);
+    });
+    show(0,true);
+  }
+
+  function clearTimers(){cancelAnimationFrame(st.raf);clearTimeout(st.timer);}
+
+  function place(path,frac){
+    var L=path.getTotalLength();
+    var pt=path.getPointAtLength(L*frac);
+    packet.setAttribute("cx",pt.x);packet.setAttribute("cy",pt.y);
+    ring.setAttribute("cx",pt.x);ring.setAttribute("cy",pt.y);
+  }
+  function hidePacket(){packet.setAttribute("cx",-50);packet.setAttribute("cy",-50);ring.setAttribute("cx",-50);ring.setAttribute("cy",-50);}
+
+  function show(i,animate){
+    clearTimers();
+    var f=FLOWS[st.f],s=f.steps[i];
+    st.i=i;
+    Object.keys(edgeEls).forEach(function(id){var on=(id===s.p);edgeEls[id].classList.toggle("on",on);edgeEls[id].setAttribute("marker-end",on?"url(#mk-on)":"url(#mk)");});
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.toggle("on",s.n.indexOf(id)>-1);});
+    if(s.p){edgeLayer.appendChild(edgeEls[s.p]);}
+    stepNo.textContent="Step "+(i+1)+" of "+f.steps.length;
+    var w=whereOf(s);stepWhere.textContent=w[0];stepWhere.classList.toggle("psc",w[1]);
+    stepTitle.textContent=s.t;stepText.textContent=s.d;
+    [].forEach.call(list.querySelectorAll("button"),function(b,k){if(k===i){b.setAttribute("aria-current","step");}else{b.removeAttribute("aria-current");}});
+    var cur=list.querySelector('[aria-current="step"]');
+    if(cur){var lt=cur.offsetTop-list.offsetTop;if(lt<list.scrollTop||lt>list.scrollTop+list.clientHeight-34){list.scrollTop=Math.max(0,lt-60);}}
+    if(!s.p){hidePacket();st.timer=setTimeout(done,1500);return;}
+    var path=edgeEls[s.p];
+    if(!animate||reduce){place(path,s.r?0:1);st.timer=setTimeout(done,reduce?2600:900);return;}
+    var L=path.getTotalLength();
+    var dur=Math.min(2200,Math.max(800,L*3.2));
+    var t0=null;
+    function tick(ts){
+      if(t0===null){t0=ts;}
+      var k=Math.min(1,(ts-t0)/dur);
+      var e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      place(path,s.r?1-e:e);
+      if(k<1){st.raf=requestAnimationFrame(tick);}else{st.timer=setTimeout(done,650);}
+    }
+    st.raf=requestAnimationFrame(tick);
+  }
+
+  function done(){
+    if(!st.playing){return;}
+    var n=FLOWS[st.f].steps.length;
+    if(st.i<n-1){show(st.i+1,true);}
+    else{st.timer=setTimeout(function(){show(0,true);},1400);}
+  }
+
+  function setPlaying(p){
+    st.playing=p;
+    playBtn.textContent=p?"Pause":"Play";
+    if(p){clearTimers();done();}
+  }
+
+  playBtn.addEventListener("click",function(){
+    if(st.playing){setPlaying(false);clearTimers();}
+    else{st.playing=true;playBtn.textContent="Pause";show(st.i,true);}
+  });
+  document.getElementById("next").addEventListener("click",function(){
+    setPlaying(false);var n=FLOWS[st.f].steps.length;show((st.i+1)%n,true);
+  });
+  document.getElementById("prev").addEventListener("click",function(){
+    setPlaying(false);var n=FLOWS[st.f].steps.length;show((st.i-1+n)%n,true);
+  });
+
+  playBtn.textContent=st.playing?"Pause":"Play";
+  setFlow(0);
+
+  [].forEach.call(document.querySelectorAll(".copy"),function(btn){
+    btn.addEventListener("click",function(){
+      var pre=btn.closest(".code").querySelector("pre");
+      var t=pre.innerText;
+      function fin(ok){btn.textContent=ok?"Copied":"Text selected";setTimeout(function(){btn.textContent="Copy";},1500);}
+      function pick(){try{var r=document.createRange();r.selectNodeContents(pre);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}fin(false);}
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){fin(true);},pick);}else{pick();}
+    });
+  });
+})();
+</script>
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  var svg=document.getElementById("opt");
+  if(!svg){return;}
+  function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs){e.setAttribute(k,attrs[k]);}if(parent){parent.appendChild(e);}return e;}
+  function txt(parent,x,y,s,cls,anchor){var t=el("text",{x:x,y:y,"class":cls},parent);if(anchor){t.setAttribute("text-anchor",anchor);}t.textContent=s;return t;}
+
+  var COLX=[36,196,356,640,810],COLW=[140,140,140,150,150],ROWY=[80,170,260,350],NH=54;
+
+  var defs=el("defs",{},svg);
+  [["mk2","mk"],["mk2on","mk-on"]].forEach(function(m){
+    var mk=el("marker",{id:m[0],viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},defs);
+    el("path",{d:"M0,0 L10,5 L0,10 z","class":m[1]},mk);
+  });
+  el("rect",{x:16,y:10,width:500,height:410,rx:12,"class":"zone edp"},svg);
+  txt(svg,32,36,"EDP project","zlab");
+  txt(svg,32,54,"Claims, features, BigQuery, Vertex AI","zsub");
+  el("rect",{x:526,y:10,width:448,height:410,rx:12,"class":"zone app"},svg);
+  txt(svg,542,36,"Application project · App VPC","zlab");
+  txt(svg,542,54,"GKE cluster and app services","zsub");
+  var ps=el("g",{"class":"strip"},svg);
+  el("rect",{x:540,y:70,width:60,height:340,rx:8,"class":"cat-net"},ps);
+  el("rect",{x:540,y:70,width:60,height:340,rx:8,"class":"cat-net",style:"fill:none;stroke-width:1.3;stroke-dasharray:5 3"},ps);
+  var pt=txt(ps,574,240,"Private Service Connect","strip-t","middle");
+  pt.setAttribute("transform","rotate(-90 574 240)");
+
+  var dyn=el("g",{},svg);
+  var ring=el("circle",{id:"ring2",r:11,cx:-50,cy:-50},svg);
+  var packet=el("circle",{id:"packet2",r:6,cx:-50,cy:-50},svg);
+
+  function N(id,c,r,k,t,s,tag){return {id:id,c:c,r:r,k:k,t:t,s:s,tag:tag};}
+
+  var OPTS=[
+    {id:"mix",name:"Recommended mix",
+     summary:"Everything runs in EDP. A detector registry decides which engines run each cycle: BigQuery ML for seasonal and volume patterns, and your library either imported into BigQuery as ONNX or run on Vertex AI when it can't be exported. Every detector writes the same scores table, so the app never knows which engine produced a score.",
+     facts:[["Runs in","EDP"],["Custom library","Yes, per detector"],["Claims leave EDP","No"]],
+     pros:["Claims never leave EDP","BigQuery ML and your library side by side","Add or swap engines without touching the app","Shadow mode compares models on live data"],
+     cons:["The registry and output contract come first","Models ship into EDP through an agreed process"],
+     nodes:[N("claims",0,0,"data","edp.claims","New 2-hour window","BQ"),N("feat",0,1,"data","Feature tables","One versioned set","BQ"),N("registry",1,0,"gov","Detector registry","Engine and version","BQ"),N("wf",1,1,"flow","Workflows","Runs detectors"),N("bqml",2,0,"cmp","BigQuery ML","Built-in models","BQ"),N("onnx",2,1,"cmp","Library as ONNX","Scored in BigQuery","BQ"),N("vertex",2,2,"cmp","Library on Vertex","Batch prediction"),N("scores",1,2,"data","model_scores","Same schema for all","BQ"),N("rules",0,3,"data","edp_rules","Client rules","BQ"),N("combine",1,3,"flow","Combine","Severity · rules"),N("anoms",2,3,"data","anomalies","Final results","BQ"),N("api",3,3,"cmp","Anomaly API","Reads results","GKE")],
+     steps:[
+       {a:"claims",b:"feat",k:"data",t:"Build one feature set",d:"Dataform builds window and claim features with the same versioned code used for training."},
+       {a:"feat",b:"wf",t:"Features ready",d:"Workflows moves to the scoring stage once the feature tables are complete."},
+       {a:"registry",b:"wf",k:"data",t:"Read enabled detectors",d:"Each registry row names an engine, a model version, a scope and a mode: live, shadow or off."},
+       {a:"wf",b:"bqml",t:"Run BigQuery ML detectors",d:"Forecast and autoencoder detectors score inside BigQuery."},
+       {a:"wf",b:"onnx",t:"Run library models in BigQuery",d:"Your library's models, imported as ONNX, score with ML.PREDICT in the same run."},
+       {a:"wf",b:"vertex",t:"Run library models on Vertex AI",d:"Only for models that can't export to ONNX. Workflows starts a batch prediction job and waits for it."},
+       {a:"vertex",b:"scores",k:"data",t:"Every detector writes the same table",d:"All engines write model_scores with the same columns: score, threshold, flag, reasons, shadow."},
+       {a:"scores",b:"combine",k:"data",t:"Combine scores",d:"Live detectors are weighted into one score per entity. Shadow scores are kept for comparison only."},
+       {a:"rules",b:"combine",k:"data",t:"Apply client rules",d:"Threshold overrides, custom rules and suppressions apply last, so clients keep control."},
+       {a:"combine",b:"anoms",k:"data",t:"Write anomalies",d:"Each anomaly records which detectors and rule versions produced it."},
+       {a:"anoms",b:"api",t:"App reads results",d:"The Anomaly API reads through PSC, exactly as before."}
+     ]},
+    {id:"a",name:"A · BigQuery ML",
+     summary:"Train and score with BigQuery ML inside the detection run. ARIMA_PLUS learns each client's weekly and monthly pattern. An autoencoder learns normal combinations of features.",
+     facts:[["Runs in","EDP"],["Custom library","Not used"],["Claims leave EDP","No"]],
+     pros:["Fastest to build, SQL only","No new runtime or network path","Retrains with one statement"],
+     cons:["Limited to BigQuery ML model types","Your custom library is not used"],
+     nodes:[N("hist",0,0,"data","Claims history","12 months","BQ"),N("feat",1,0,"data","Training features","Dataform","BQ"),N("train",2,0,"cmp","CREATE MODEL","Weekly retrain","BQ"),N("model",2,1,"data","Saved model","Dated version","BQ"),N("newc",0,2,"data","New window","edp.claims","BQ"),N("nfeat",1,2,"data","Window features","Same code","BQ"),N("score",2,2,"cmp","Score","DETECT_ANOMALIES","BQ"),N("scores",2,3,"data","model_scores","edp_anomaly","BQ")],
+     steps:[
+       {a:"hist",b:"feat",k:"data",t:"Build training features",d:"Dataform turns 12 months of claims into features per client, pharmacy and drug class."},
+       {a:"feat",b:"train",k:"data",t:"Train on a schedule",d:"CREATE MODEL runs weekly: ARIMA_PLUS per client and metric, an autoencoder across all features."},
+       {a:"train",b:"model",k:"data",t:"Keep the version",d:"Each retrain creates a model with a date in its name, so a run can pin one version."},
+       {a:"newc",b:"nfeat",k:"data",t:"Features for the new window",d:"The same Dataform code builds features for the latest 2 hours."},
+       {a:"nfeat",b:"score",k:"data",t:"Score inside the run",d:"ML.DETECT_ANOMALIES returns a flag and an anomaly probability per row."},
+       {a:"model",b:"score",k:"data",t:"Use the pinned version",d:"The run uses the version named in the detector registry."},
+       {a:"score",b:"scores",k:"data",t:"Write scores",d:"Results go to edp_anomaly.model_scores, ready to combine with rules."}
+     ]},
+    {id:"b",name:"B · Library in BigQuery",
+     summary:"Train with your custom library on Vertex AI, export the model to ONNX, and import it into BigQuery ML. Scoring then runs as a SQL step in the same run, next to the data.",
+     facts:[["Runs in","EDP"],["Custom library","Yes, via ONNX"],["Claims leave EDP","No"]],
+     pros:["Your library, and no claims leave EDP","Scoring is SQL, with no extra runtime each run","Same speed as BigQuery ML"],
+     cons:["Models must export to ONNX with supported operators","Size and operator limits on imported models","Explanations need a separate step"],
+     nodes:[N("hist",0,0,"data","Claims history","12 months","BQ"),N("feat",1,0,"data","Training features","Dataform","BQ"),N("vtrain",2,0,"cmp","Vertex training","Your library"),N("onnx",2,1,"data","model.onnx","Cloud Storage"),N("bqm",1,1,"data","Imported model","MODEL_TYPE ONNX","BQ"),N("nfeat",0,2,"data","Window features","Same code","BQ"),N("score",1,2,"cmp","ML.PREDICT","Inside the run","BQ"),N("scores",1,3,"data","model_scores","edp_anomaly","BQ")],
+     steps:[
+       {a:"hist",b:"feat",k:"data",t:"Build training features",d:"Same feature code as scoring, run over 12 months of history."},
+       {a:"feat",b:"vtrain",t:"Train with your library",d:"A Vertex AI custom training job runs your library in a container and reads features from BigQuery."},
+       {a:"vtrain",b:"onnx",t:"Export to ONNX",d:"The job writes the ONNX model, thresholds and feature list to Cloud Storage in EDP."},
+       {a:"onnx",b:"bqm",t:"Import into BigQuery ML",d:"CREATE MODEL with MODEL_TYPE 'ONNX' points at the file. The registry records the new version."},
+       {a:"nfeat",b:"score",k:"data",t:"Features for the new window",d:"The new window's features feed straight into the scoring query."},
+       {a:"bqm",b:"score",k:"data",t:"Score with ML.PREDICT",d:"The imported model scores every row inside the run."},
+       {a:"score",b:"scores",k:"data",t:"Write scores",d:"Scores land in model_scores. Reasons come from a separate explain step if you need them."}
+     ]},
+    {id:"c",name:"C · Library on Vertex AI",
+     summary:"Run your library on Vertex AI for both training and scoring. Each run, Workflows starts a batch prediction job that reads features from BigQuery and writes scores back to BigQuery.",
+     facts:[["Runs in","EDP"],["Custom library","Yes, any language"],["Claims leave EDP","No"]],
+     pros:["Any language or dependency, GPUs if needed","Full explanations such as SHAP","Vertex Model Registry tracks versions"],
+     cons:["Job start-up adds minutes to every run","One more service to operate and pay for"],
+     nodes:[N("hist",0,0,"data","Claims history","12 months","BQ"),N("feat",1,0,"data","Training features","Dataform","BQ"),N("vtrain",2,0,"cmp","Vertex training","Your library"),N("reg",2,1,"gov","Model Registry","Live version"),N("nfeat",0,2,"data","Window features","Same code","BQ"),N("batch",1,2,"cmp","Batch prediction","Your library"),N("scores",1,3,"data","model_scores","edp_anomaly","BQ")],
+     steps:[
+       {a:"hist",b:"feat",k:"data",t:"Build training features",d:"Same feature code as scoring, run over 12 months of history."},
+       {a:"feat",b:"vtrain",t:"Train with your library",d:"A custom training job runs your container and reads features from BigQuery."},
+       {a:"vtrain",b:"reg",t:"Register the version",d:"Model, thresholds and explainer are saved in Vertex Model Registry."},
+       {a:"nfeat",b:"batch",t:"Start batch prediction",d:"Workflows starts a batch job pointed at the new window's feature table."},
+       {a:"reg",b:"batch",t:"Use the live version",d:"The job loads the version marked live in the detector registry."},
+       {a:"batch",b:"scores",k:"data",t:"Write scores and reasons",d:"Output lands in BigQuery with SHAP reasons and is merged into model_scores."}
+     ]},
+    {id:"d",name:"D · App GKE, features",
+     summary:"Run your library in the app GKE cluster. It reads features, never raw claims, through Private Service Connect and writes scores back to BigQuery.",
+     facts:[["Runs in","Both projects"],["Custom library","Yes, as is"],["Claims leave EDP","No, features do"]],
+     pros:["App team owns training and scoring","Library runs as is, including in Java","No dependency on EDP release process"],
+     cons:["Reads and writes cross the boundary every run","VPC-SC ingress for both directions","Two teams own one pipeline"],
+     nodes:[N("hist",0,0,"data","Claims history","12 months","BQ"),N("feat",1,0,"data","Training features","Dataform","BQ"),N("tview",2,0,"gov","Feature view","No PHI","BQ"),N("tjob",3,0,"cmp","Training job","Your library","GKE"),N("art",4,0,"data","Model artifact","GCS, app project"),N("newc",0,1,"data","New window","edp.claims","BQ"),N("nfeat",1,1,"data","Window features","Same code","BQ"),N("wview",2,1,"gov","Window view","No PHI","BQ"),N("scorer",3,2,"cmp","Scorer service","Your library","GKE"),N("scores",2,3,"data","model_scores","edp_anomaly","BQ")],
+     steps:[
+       {a:"hist",b:"feat",k:"data",t:"Build training features",d:"Features are still built in BigQuery, where the history is."},
+       {a:"feat",b:"tview",k:"data",t:"Expose features",d:"An authorized view exposes features only, with no member or prescriber ids."},
+       {a:"tview",b:"tjob",t:"Training reads through PSC",d:"A GKE job reads the feature view with the Storage Read API and trains your library."},
+       {a:"tjob",b:"art",t:"Save the model",d:"Model, thresholds and feature list saved as a version in an app-project bucket."},
+       {a:"newc",b:"nfeat",k:"data",t:"Build window features",d:"Dataform builds features for the new window inside EDP."},
+       {a:"nfeat",b:"wview",k:"data",t:"Expose window features",d:"Thousands of feature rows, not 830k claims."},
+       {a:"wview",b:"scorer",k:"evt",t:"Scorer pulls features",d:"The run-complete event triggers the scorer, which reads the window view through PSC."},
+       {a:"art",b:"scorer",t:"Load the live model",d:"The scorer loads the version named in the registry."},
+       {a:"scorer",b:"scores",m:"v",t:"Write scores back",d:"Scores and reasons go to model_scores through PSC with the Storage Write API. This needs a write grant and a VPC-SC ingress rule."}
+     ]},
+    {id:"e",name:"E · App GKE, raw claims",
+     summary:"The app cluster pulls raw claims through Private Service Connect, builds features in code and scores them. This is what running detection on the 2-hour data in the app cluster means.",
+     facts:[["Runs in","App project"],["Custom library","Yes, as is"],["Claims leave EDP","Yes"]],
+     pros:["Full control of features in code","Works if features can't be expressed in SQL"],
+     cons:["PHI enters the app cluster every run","Training pulls months of claims, billions of rows","Late data means pulling windows again","History and features duplicated outside BigQuery"],
+     nodes:[N("hist",0,0,"data","Claims history","12 months","BQ"),N("hview",2,0,"gov","Claims view","Authorized view","BQ"),N("tjob",3,0,"cmp","Training job","Features in code","GKE"),N("art",4,0,"data","Model artifact","GCS, app project"),N("newc",0,1,"data","New window","About 830k claims","BQ"),N("cview",2,1,"gov","Claims view","Authorized view","BQ"),N("scorer",3,1,"cmp","Scorer service","Features + score","GKE"),N("scores",2,2,"data","model_scores","edp_anomaly","BQ")],
+     steps:[
+       {a:"hist",b:"hview",k:"data",t:"Expose claim history",d:"A view exposes months of claim rows to the app project."},
+       {a:"hview",b:"tjob",t:"Pull history to train",d:"The training job pulls billions of rows through PSC and builds features in memory."},
+       {a:"tjob",b:"art",t:"Save the model",d:"The model is saved in the app project."},
+       {a:"newc",b:"cview",k:"data",t:"New window lands",d:"About 830k claims arrive in edp.claims."},
+       {a:"cview",b:"scorer",t:"Pull 830k claims",d:"The scorer pulls the window with the Storage Read API. The app cluster now holds claim-level PHI."},
+       {a:"art",b:"scorer",t:"Load the model",d:"The scorer builds features in code and scores each claim."},
+       {a:"scorer",b:"scores",m:"v",t:"Write scores back",d:"Scores go back to BigQuery so the app and drill-down still read one place."}
+     ]}
+  ];
+
+  function route(a,b,m){
+    var acx=a.x+a.w/2,acy=a.y+NH/2,bcy=b.y+NH/2;
+    if(a.r===b.r){return b.c>a.c?("M"+(a.x+a.w)+","+acy+" H"+b.x):("M"+a.x+","+acy+" H"+(b.x+b.w));}
+    if(a.c===b.c){return b.r>a.r?("M"+acx+","+(a.y+NH)+" V"+b.y):("M"+acx+","+a.y+" V"+(b.y+NH));}
+    if(m==="v"){var y0=b.r>a.r?a.y+NH:a.y;var tx=b.c>a.c?b.x:b.x+b.w;return "M"+acx+","+y0+" V"+bcy+" H"+tx;}
+    var x0,xm,tx2;
+    if(b.c>a.c){x0=a.x+a.w;xm=b.x-10;tx2=b.x;}else{x0=a.x;xm=b.x+b.w+10;tx2=b.x+b.w;}
+    return "M"+x0+","+acy+" H"+xm+" V"+bcy+" H"+tx2;
+  }
+
+  var tabs=document.getElementById("otabs"),list=document.getElementById("osteplist"),playBtn=document.getElementById("oplay");
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var st={o:0,i:0,playing:!reduce,raf:0,timer:0,R:{},paths:[],badges:[],nodes:{}};
+
+  OPTS.forEach(function(o,k){
+    var b=document.createElement("button");b.type="button";b.textContent=o.name;b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",function(){setOpt(k);});tabs.appendChild(b);
+  });
+
+  function fillList(ul,items){ul.innerHTML="";items.forEach(function(s){var li=document.createElement("li");li.textContent=s;ul.appendChild(li);});}
+
+  function setOpt(k){
+    st.o=k;var o=OPTS[k];
+    [].forEach.call(tabs.children,function(b,j){b.setAttribute("aria-pressed",String(j===k));});
+    document.getElementById("oName").textContent=o.name;
+    document.getElementById("oSummary").textContent=o.summary;
+    var f=document.getElementById("oFacts");f.innerHTML="";
+    o.facts.forEach(function(x){var s=document.createElement("span");var b=document.createElement("b");b.textContent=x[0]+": ";s.appendChild(b);s.appendChild(document.createTextNode(x[1]));f.appendChild(s);});
+    fillList(document.getElementById("oPros"),o.pros);
+    fillList(document.getElementById("oCons"),o.cons);
+
+    while(dyn.firstChild){dyn.removeChild(dyn.firstChild);}
+    var eg=el("g",{},dyn),ng=el("g",{},dyn),bg=el("g",{},dyn);
+    st.R={};st.nodes={};st.paths=[];st.badges=[];
+    o.nodes.forEach(function(n){
+      var x=COLX[n.c],y=ROWY[n.r],w=COLW[n.c];
+      st.R[n.id]={x:x,y:y,w:w,c:n.c,r:n.r};
+      var g=el("g",{"class":"node"},ng);
+      el("rect",{x:x,y:y,width:w,height:NH,rx:8,"class":"box cat-"+n.k},g);
+      el("circle",{cx:x+13,cy:y+20,r:4,"class":"cat-"+n.k},g);
+      txt(g,x+23,y+24,n.t,"ntitle");
+      txt(g,x+23,y+40,n.s,"nsub");
+      if(n.tag){txt(g,x+w-8,y+13,n.tag,"ntag","end");}
+      st.nodes[n.id]=g;
+    });
+    o.steps.forEach(function(s,j){
+      var p=el("path",{d:route(st.R[s.a],st.R[s.b],s.m||"h"),"class":"edge "+(s.k||"req"),"marker-end":"url(#mk2)"},eg);
+      st.paths.push(p);
+      var L=p.getTotalLength(),pt=p.getPointAtLength(L/2);
+      var bgp=el("g",{"class":"badge"},bg);
+      el("circle",{cx:pt.x,cy:pt.y,r:9,"class":"badge-c"},bgp);
+      txt(bgp,pt.x,pt.y+3.5,String(j+1),"badge-t","middle");
+      st.badges.push(bgp);
+    });
+
+    list.innerHTML="";
+    o.steps.forEach(function(s,j){
+      var li=document.createElement("li"),b=document.createElement("button");b.type="button";
+      var no=document.createElement("span");no.className="no";no.textContent=String(j+1).padStart(2,"0");
+      var tt=document.createElement("span");tt.textContent=s.t;
+      b.appendChild(no);b.appendChild(tt);
+      b.addEventListener("click",function(){setPlaying(false);show(j,true);});
+      li.appendChild(b);list.appendChild(li);
+    });
+    show(0,true);
+  }
+
+  function zone(c){return c<=2?"edp":"app";}
+  function clearTimers(){cancelAnimationFrame(st.raf);clearTimeout(st.timer);}
+  function place(p,f){var L=p.getTotalLength(),q=p.getPointAtLength(L*f);packet.setAttribute("cx",q.x);packet.setAttribute("cy",q.y);ring.setAttribute("cx",q.x);ring.setAttribute("cy",q.y);}
+
+  function show(i,animate){
+    clearTimers();
+    var o=OPTS[st.o],s=o.steps[i];st.i=i;
+    st.paths.forEach(function(p,j){var on=j===i;p.classList.toggle("on",on);p.setAttribute("marker-end",on?"url(#mk2on)":"url(#mk2)");});
+    st.badges.forEach(function(b,j){b.classList.toggle("on",j===i);});
+    Object.keys(st.nodes).forEach(function(id){st.nodes[id].classList.toggle("on",id===s.a||id===s.b);});
+    var p=st.paths[i];p.parentNode.appendChild(p);
+    var za=zone(st.R[s.a].c),zb=zone(st.R[s.b].c),w=document.getElementById("oWhere");
+    if(za!==zb){w.textContent="Through PSC";w.classList.add("psc");}else{w.textContent=za==="edp"?"EDP project":"App project";w.classList.remove("psc");}
+    document.getElementById("oStepNo").textContent="Step "+(i+1)+" of "+o.steps.length;
+    document.getElementById("oTitle").textContent=s.t;
+    document.getElementById("oText").textContent=s.d;
+    [].forEach.call(list.querySelectorAll("button"),function(b,j){if(j===i){b.setAttribute("aria-current","step");}else{b.removeAttribute("aria-current");}});
+    var cur=list.querySelector('[aria-current="step"]');
+    if(cur){var lt=cur.offsetTop-list.offsetTop;if(lt<list.scrollTop||lt>list.scrollTop+list.clientHeight-34){list.scrollTop=Math.max(0,lt-60);}}
+    if(!animate||reduce){place(p,1);st.timer=setTimeout(done,reduce?2600:900);return;}
+    var L=p.getTotalLength(),dur=Math.min(2000,Math.max(800,L*3.4)),t0=null;
+    function tick(ts){
+      if(t0===null){t0=ts;}
+      var k=Math.min(1,(ts-t0)/dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      place(p,e);
+      if(k<1){st.raf=requestAnimationFrame(tick);}else{st.timer=setTimeout(done,650);}
+    }
+    st.raf=requestAnimationFrame(tick);
+  }
+  function done(){
+    if(!st.playing){return;}
+    var n=OPTS[st.o].steps.length;
+    if(st.i<n-1){show(st.i+1,true);}else{st.timer=setTimeout(function(){show(0,true);},1400);}
+  }
+  function setPlaying(p){st.playing=p;playBtn.textContent=p?"Pause":"Play";}
+  playBtn.addEventListener("click",function(){
+    if(st.playing){setPlaying(false);clearTimers();}else{setPlaying(true);show(st.i,true);}
+  });
+  document.getElementById("onext").addEventListener("click",function(){setPlaying(false);var n=OPTS[st.o].steps.length;show((st.i+1)%n,true);});
+  document.getElementById("oprev").addEventListener("click",function(){setPlaying(false);var n=OPTS[st.o].steps.length;show((st.i-1+n)%n,true);});
+  playBtn.textContent=st.playing?"Pause":"Play";
+  setOpt(0);
+})();
+</script>
+
+</body>
+</html>

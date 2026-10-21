@@ -1,0 +1,62 @@
+# Anomaly API (Spring Boot on GKE, VPC 2). Example configuration.
+#
+# Two datasources:
+#   bigquery : read-only, Google's BigQuery JDBC driver, through the PSC endpoint
+#   reviews  : Cloud SQL for PostgreSQL over private IP with IAM database auth
+# Spring Boot auto-configures one DataSource, so bind these prefixes with
+# @ConfigurationProperties and build two HikariDataSource beans (see docs/serving-and-ui.md).
+#
+# Check the BigQuery driver class and property names against the driver version you install.
+
+app:
+  datasource:
+    bigquery:
+      driver-class-name: com.simba.googlebigquery.jdbc.Driver
+      # ProjectId is the billing project where query jobs run (the app project).
+      # OAuthType=3 = Application Default Credentials (GKE Workload Identity). No key files.
+      # bigquery.googleapis.com resolves to the PSC endpoint through the private DNS zone.
+      jdbc-url: >-
+        jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;ProjectId=${APP_PROJECT_ID};OAuthType=3;Timeout=60;EnableHighThroughputAPI=1
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      read-only: true
+
+    reviews:
+      driver-class-name: org.postgresql.Driver
+      # Cloud SQL Java connector (com.google.cloud.sql:postgres-socket-factory)
+      jdbc-url: >-
+        jdbc:postgresql:///anomaly_review?cloudSqlInstance=${CLOUDSQL_INSTANCE}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&enableIamAuth=true&ipTypes=PRIVATE
+      username: ${API_SERVICE_ACCOUNT_DB_USER}   # e.g. sa-anomaly-api@app-project.iam
+      maximum-pool-size: 20
+
+  bigquery:
+    edp-project: ${EDP_PROJECT_ID}
+    dataset: edp_anomaly
+    page-size: 100
+
+  cache:
+    feed-ttl: 3h          # results only change when a run completes; keys include run_id
+    latest-run-ttl: 60s
+
+  refresh:
+    pubsub-subscription: projects/${APP_PROJECT_ID}/subscriptions/anomaly-run-complete-app
+    sse-heartbeat: 25s    # keep below the load balancer and proxy idle timeouts
+    client-poll-interval: 5m
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: 6379
+      ssl:
+        enabled: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration   # copy sql/postgres/V1__review_schema.sql here
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Z-Score Anomaly Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;700&family=Red+Hat+Mono:wght@400;500&family=Red+Hat+Text:wght@400;500;600&display=swap">
+<style>
+/* Layout: answer first, then one wide animated map (People | VPC 2 app + PSC | VPC 1 EDP) with flow tabs and narration, then reference sections for z-score, tables, JDBC, refresh, batch placement, access. */
+:root{
+  --bg:#F2F5F8;--surface:#FFFFFF;--soft:#E8EDF2;--ink:#14202B;--muted:#56636F;--line:#CBD4DD;--edge:#9AA8B5;
+  --z-usr:#EAF2EA;--z-app:#E9EFF7;--z-edp:#F3EEE3;
+  --c-ui:#2E7A39;--c-net:#0A7083;--c-cmp:#3956C8;--c-data:#956000;--c-flow:#7E3EA3;--c-gov:#AA2C54;
+  --code-bg:#EBF0F5;--cm:#647280;
+  --f-display:'Red Hat Display','Segoe UI',system-ui,sans-serif;
+  --f-body:'Red Hat Text','Segoe UI',system-ui,sans-serif;
+  --f-mono:'Red Hat Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1218;--surface:#141C25;--soft:#1B2530;--ink:#E3E9EE;--muted:#97A4B1;--line:#2D3A47;--edge:#4C5B6A;
+    --z-usr:#121D16;--z-app:#121A24;--z-edp:#1C1A14;
+    --c-ui:#7ACF88;--c-net:#58C3D4;--c-cmp:#93A9FF;--c-data:#E6B35A;--c-flow:#C99AEA;--c-gov:#F08DAB;
+    --code-bg:#0A1016;--cm:#8795A3;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1218;--surface:#141C25;--soft:#1B2530;--ink:#E3E9EE;--muted:#97A4B1;--line:#2D3A47;--edge:#4C5B6A;
+  --z-usr:#121D16;--z-app:#121A24;--z-edp:#1C1A14;
+  --c-ui:#7ACF88;--c-net:#58C3D4;--c-cmp:#93A9FF;--c-data:#E6B35A;--c-flow:#C99AEA;--c-gov:#F08DAB;
+  --code-bg:#0A1016;--cm:#8795A3;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1320px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+main{display:flex;flex-direction:column;gap:52px}
+main>*{min-width:0}
+section{display:flex;flex-direction:column;gap:16px;min-width:0}
+h1,h2,h3{font-family:var(--f-display);line-height:1.2;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.8rem,4.2vw,2.6rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.45rem;font-weight:700}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+.lede{color:var(--muted);max-width:74ch}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--soft);padding:1px 5px;border-radius:4px}
+button{font-family:var(--f-body);color:var(--ink)}
+button:focus-visible{outline:2px solid var(--c-cmp);outline-offset:2px}
+.head{display:flex;flex-direction:column;gap:12px;padding-bottom:20px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.chips li{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:13px;color:var(--muted)}
+.chips b{color:var(--ink);font-weight:600}
+
+.answer{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:clamp(16px,3vw,24px);display:flex;flex-direction:column;gap:14px}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.trio>div{background:var(--soft);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.trio p{font-size:14px}
+.where{font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:var(--soft);color:var(--ink)}
+.trio .where{background:var(--surface)}
+.where.psc{background:var(--c-net);color:var(--surface)}
+
+.stage{border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font-size:14px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 15px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.ctrl{display:flex;gap:6px}
+.ctrl button{font-size:14px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;min-width:44px}
+.ctrl button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);min-width:88px}
+.scroll{overflow-x:auto}
+#arch{display:block;width:100%;min-width:1060px;height:auto}
+.hint{display:none;font-size:12.5px;color:var(--muted);padding:8px 14px;border-top:1px solid var(--line)}
+@media (max-width:1080px){.hint{display:block}}
+
+.zone{stroke:var(--line);stroke-width:1}
+.zone.usr{fill:var(--z-usr)}
+.zone.app{fill:var(--z-app)}
+.zone.edp{fill:var(--z-edp);stroke-dasharray:6 4}
+.zlab{font:700 13px var(--f-display);fill:var(--ink)}
+.zsub{font:500 11px var(--f-body);fill:var(--muted)}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.6;transition:opacity .2s}
+.edge.evt{stroke-dasharray:7 5}
+.edge.data{stroke-dasharray:2 4;stroke-linecap:round}
+.edge.on{stroke:var(--ink);stroke-width:2.8}
+.mk{fill:var(--edge)}
+.mk-on{fill:var(--ink)}
+.elab{font:500 10.5px var(--f-mono);fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.node{transition:opacity .2s}
+.node rect.box{fill:var(--surface);stroke-width:1.3}
+.node.opt rect.box{stroke-dasharray:5 3}
+.node.on rect.box{stroke:var(--ink);stroke-width:2.6}
+.ntitle{font:600 12.5px var(--f-body);fill:var(--ink)}
+.nsub{font:400 11px var(--f-body);fill:var(--muted)}
+.ntag{font:500 9.5px var(--f-mono);fill:var(--muted)}
+.strip-t{font:600 11.5px var(--f-body);fill:var(--ink)}
+svg.flowing .node:not(.inflow){opacity:.32}
+svg.flowing .edge:not(.inflow){opacity:.28}
+svg.flowing .elab:not(.inflow){opacity:.35}
+.cat-ui{stroke:var(--c-ui);fill:var(--c-ui)}
+.cat-net{stroke:var(--c-net);fill:var(--c-net)}
+.cat-cmp{stroke:var(--c-cmp);fill:var(--c-cmp)}
+.cat-data{stroke:var(--c-data);fill:var(--c-data)}
+.cat-flow{stroke:var(--c-flow);fill:var(--c-flow)}
+.cat-gov{stroke:var(--c-gov);fill:var(--c-gov)}
+.node rect.box.cat-ui,.node rect.box.cat-net,.node rect.box.cat-cmp,.node rect.box.cat-data,.node rect.box.cat-flow,.node rect.box.cat-gov{fill:var(--surface)}
+.strip rect.tint{fill-opacity:.1}
+#packet{fill:var(--ink);stroke:var(--surface);stroke-width:2.5}
+#ring{fill:none;stroke:var(--ink);stroke-width:1.5;opacity:.5}
+
+.narr{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px;border-top:1px solid var(--line)}
+@media (min-width:900px){.narr{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}}
+.now{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.now-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.now h3{font-size:1.2rem}
+.now p{max-width:62ch}
+.steplist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:330px;overflow-y:auto}
+.steplist button{width:100%;text-align:left;display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:baseline;background:none;border:0;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:14px}
+.steplist button:hover{background:var(--soft)}
+.steplist button[aria-current="step"]{background:var(--soft);font-weight:600}
+.steplist .no{font:500 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13.5px;color:var(--muted);align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:11px;height:11px;border-radius:3px;flex:none}
+.sw.ui{background:var(--c-ui)}.sw.net{background:var(--c-net)}.sw.cmp{background:var(--c-cmp)}.sw.data{background:var(--c-data)}.sw.flow{background:var(--c-flow)}
+.legend svg{width:40px;height:10px}
+.legend line{stroke:var(--ink);stroke-width:2}
+
+.formula{font:500 clamp(1rem,2.4vw,1.25rem) var(--f-mono);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto}
+.formula .cm{color:var(--muted);font-size:.8em}
+.facts{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;max-width:80ch}
+.facts b{font-weight:600}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px}
+.two>*{min-width:0}
+.ex{border:1px dashed var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px;background:var(--surface)}
+.ex .k{font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.tablewrap{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow-x:auto}
+.rt{width:100%;border-collapse:collapse;font-size:14px}
+.rt th{text-align:left;font:600 11.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);background:var(--soft)}
+.rt td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.rt tr:last-child td{border-bottom:0}
+.rt td:first-child{font-weight:600}
+.sub{display:block;font-size:12.5px;color:var(--muted);font-weight:400;margin-top:2px}
+@media (max-width:719px){
+  .tablewrap{border:0;background:none;overflow:visible}
+  .rt thead{display:none}
+  .rt,.rt tbody{display:flex;flex-direction:column;gap:10px}
+  .rt tr{display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  .rt td{display:block;border:0;padding:4px 0}
+  .rt td::before{content:attr(data-label);display:block;font:600 10.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .rt td:first-child::before{display:none}
+}
+.code{border:1px solid var(--line);border-radius:10px;background:var(--code-bg);overflow:hidden;min-width:0}
+.code-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-bottom:1px solid var(--line);font:500 12px var(--f-mono);color:var(--muted)}
+.copy{font-size:12px;font-weight:500;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 10px;cursor:pointer}
+pre{margin:0;padding:12px 14px;overflow-x:auto;font:12.5px/1.6 var(--f-mono);color:var(--ink);tab-size:2}
+pre .cm{color:var(--cm)}
+.rec{background:var(--surface);border:1.5px solid var(--ink);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.foot{font-size:13px;color:var(--muted);max-width:76ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="head">
+  <h1>Z-Score Anomaly Pipeline</h1>
+  <p class="lede">A z-score check runs as a batch job on every 2-hour load in VPC 1, where BigQuery lives. It writes anomalies and the flagged transactions to their own tables. The web app in VPC 2 reads those tables over JDBC through Private Service Connect, and refreshes when each run finishes.</p>
+  <ul class="chips" aria-label="Assumptions">
+    <li><b>10M</b> claims a day</li>
+    <li><b>12</b> batch runs a day</li>
+    <li>VPC 1 · <b>EDP, BigQuery</b></li>
+    <li>VPC 2 · <b>web app on GKE</b></li>
+    <li><b>Private Service Connect</b> between them</li>
+  </ul>
+</header>
+
+<main>
+
+<section class="answer" aria-labelledby="ans-h">
+  <h2 id="ans-h">How it fits together</h2>
+  <div class="trio">
+    <div><span class="where">VPC 1 · EDP</span><h3>Batch job computes z-scores</h3><p>Every 2 hours a BigQuery SQL job compares each client's new window with its 8-week baseline. Hits go to <code>anomalies</code>, and every claim behind them goes to <code>anomaly_transactions</code>.</p></div>
+    <div><span class="where">VPC 2 · App</span><h3>UI refreshes on run complete</h3><p>The job publishes a run-complete message. The app pushes it to open browsers, which then fetch the new results. A 5-minute poll covers anyone who missed it.</p></div>
+    <div><span class="where psc">Through PSC</span><h3>JDBC reads the anomaly tables</h3><p>The Spring Boot API uses the BigQuery JDBC driver. Each query is a BigQuery job over HTTPS to the PSC endpoint. Nothing holds a live connection open, and claims are not copied into VPC 2.</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="flow-h">
+  <h2 id="flow-h">Architecture</h2>
+  <div class="stage">
+    <div class="bar">
+      <div class="tabs" role="group" aria-label="Choose a flow" id="tabs"></div>
+      <div class="ctrl">
+        <button type="button" id="prev" aria-label="Previous step">←</button>
+        <button type="button" id="play" class="primary">Pause</button>
+        <button type="button" id="next" aria-label="Next step">→</button>
+      </div>
+    </div>
+    <div class="scroll">
+      <svg id="arch" viewBox="0 0 1220 640" role="img" aria-label="Two VPCs. In VPC 1, the EDP project, a BigQuery scheduled query runs the z-score SQL on each 2-hour window of edp.claims against baseline_stats, writes anomalies and anomaly_transactions, and publishes run-complete to Pub/Sub. In VPC 2, a refresh notifier pulls that message through Private Service Connect and pushes it to browsers. The Anomaly API reads anomalies and anomaly_transactions with the BigQuery JDBC driver through Private Service Connect, caches results in Redis and stores review decisions in Cloud SQL."></svg>
+    </div>
+    <p class="hint">Scroll sideways to see the whole diagram.</p>
+    <div class="legend" aria-label="Legend">
+      <span><i class="sw ui"></i>Users and web UI</span>
+      <span><i class="sw net"></i>Network</span>
+      <span><i class="sw cmp"></i>Compute</span>
+      <span><i class="sw data"></i>Data</span>
+      <span><i class="sw flow"></i>Orchestration and events</span>
+      <span><svg viewBox="0 0 40 10" aria-hidden="true"><line x1="2" y1="5" x2="38" y2="5"></line></svg>Request</span>
+      <span><svg viewBox="0 0 40 10" aria-hidden="true"><line x1="2" y1="5" x2="38" y2="5" stroke-dasharray="7 5"></line></svg>Event</span>
+      <span><svg viewBox="0 0 40 10" aria-hidden="true"><line x1="2" y1="5" x2="38" y2="5" stroke-dasharray="2 4" stroke-linecap="round"></line></svg>Read or write in BigQuery</span>
+      <span>Dashed box: optional</span>
+    </div>
+    <div class="narr">
+      <div class="now" aria-live="polite">
+        <div class="now-meta"><span id="stepNo"></span><span class="where" id="stepWhere"></span></div>
+        <h3 id="stepTitle"></h3>
+        <p id="stepText"></p>
+      </div>
+      <ol class="steplist" id="steplist"></ol>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="z-h">
+  <h2 id="z-h">The z-score, and which transactions get loaded</h2>
+  <div class="formula">z = (observed − mean) ÷ stddev <span class="cm">  · flag when |z| ≥ 3</span></div>
+  <ul class="facts">
+    <li><b>Observed</b> is a client's total in the new 2-hour window, for each metric: claim count, paid amount, reject rate.</li>
+    <li><b>Mean and stddev</b> come from the same weekday and the same 2-hour slot over the last 8 weeks. Monday 08:00 is compared with past Mondays at 08:00, so normal daily and weekly swings don't flag.</li>
+    <li><b>Guards against noise.</b> Skip a client with fewer than 4 weeks of history. Put a floor under stddev, for example 5% of the mean, so a very flat history doesn't turn a small change into a huge z. Set a minimum volume per window.</li>
+    <li><b>Per-client thresholds.</b> 3 is the default. Clients can be tuned up or down in a small settings table the job reads.</li>
+  </ul>
+  <div class="two">
+    <div class="ex">
+      <span class="k">Which transactions are loaded</span>
+      <p>For every flagged client window, the job loads all of that client's claims in the window into <code>anomaly_transactions</code>. When the flag is on reject rate, it loads the rejected claims only. Each claim also gets its own z-score, its paid amount per unit against that drug's normal, so reviewers can sort the most unusual claims to the top.</p>
+    </div>
+    <div class="ex">
+      <span class="k">How much data (example)</span>
+      <p>If 20 client windows flag in a run and each holds about 2,000 claims, that is 40,000 rows per run, or roughly 500,000 a day. That's small for BigQuery. Partition by run date and expire partitions after the review period, for example 180 days.</p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="sql-h">
+  <h2 id="sql-h">The batch job's SQL</h2>
+  <p class="lede">Three statements. The baseline is rebuilt once a day. The z-score and the transaction load run every 2 hours. Project, table and column names are placeholders.</p>
+  <div class="code">
+    <div class="code-head"><span>1. Daily: rebuild the baseline</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm">-- Mean and stddev per client, metric, weekday and 2-hour slot, last 8 weeks.</span>
+CREATE OR REPLACE TABLE edp_anomaly.baseline_stats CLUSTER BY client_id AS
+WITH w AS (
+  SELECT client_id,
+         EXTRACT(DAYOFWEEK FROM received_ts)    AS dow,
+         DIV(EXTRACT(HOUR FROM received_ts), 2) AS slot,
+         DATE(received_ts)                      AS d,
+         CAST(COUNT(*) AS FLOAT64)              AS claim_count,
+         CAST(SUM(paid_amount) AS FLOAT64)      AS paid_amount,
+         SAFE_DIVIDE(COUNTIF(claim_status = 'REJECTED'), COUNT(*)) AS reject_rate
+  FROM edp.claims
+  WHERE received_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 56 DAY)
+                          AND DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+  GROUP BY client_id, dow, slot, d
+)
+SELECT client_id, dow, slot, metric,
+       AVG(value) AS mean, STDDEV_SAMP(value) AS stddev, COUNT(*) AS n
+FROM w UNPIVOT (value FOR metric IN (claim_count, paid_amount, reject_rate))
+GROUP BY client_id, dow, slot, metric;</pre>
+  </div>
+  <div class="code">
+    <div class="code-head"><span>2. Every 2 hours: score the new window</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm">-- @window_start is the slot start, @run_id comes from the batch job.</span>
+INSERT INTO edp_anomaly.anomalies
+  (anomaly_id, run_id, client_id, window_start, metric, observed, mean, stddev, z, severity)
+WITH cur AS (
+  SELECT client_id,
+         CAST(COUNT(*) AS FLOAT64)         AS claim_count,
+         CAST(SUM(paid_amount) AS FLOAT64) AS paid_amount,
+         SAFE_DIVIDE(COUNTIF(claim_status = 'REJECTED'), COUNT(*)) AS reject_rate
+  FROM edp.claims
+  WHERE received_date = DATE(@window_start)          <span class="cm">-- one partition</span>
+    AND received_ts &gt;= @window_start
+    AND received_ts &lt;  TIMESTAMP_ADD(@window_start, INTERVAL 2 HOUR)
+  GROUP BY client_id
+),
+scored AS (
+  SELECT o.client_id, o.metric, o.observed, b.mean, b.stddev,
+         SAFE_DIVIDE(o.observed - b.mean, GREATEST(b.stddev, b.mean * 0.05)) AS z
+  FROM cur UNPIVOT (observed FOR metric IN (claim_count, paid_amount, reject_rate)) o
+  JOIN edp_anomaly.baseline_stats b
+    ON b.client_id = o.client_id AND b.metric = o.metric
+   AND b.dow  = EXTRACT(DAYOFWEEK FROM @window_start)
+   AND b.slot = DIV(EXTRACT(HOUR FROM @window_start), 2)
+  WHERE b.n &gt;= 4                                      <span class="cm">-- at least 4 weeks of history</span>
+)
+SELECT TO_HEX(MD5(CONCAT(client_id, '|', CAST(@window_start AS STRING), '|', metric))),
+       @run_id, client_id, @window_start, metric, observed, mean, stddev, z,
+       IF(ABS(z) &gt;= 5, 'HIGH', 'MEDIUM')
+FROM scored
+WHERE ABS(z) &gt;= 3;
+<span class="cm">-- A rerun of the same window deletes its rows first, or use MERGE on anomaly_id.</span></pre>
+  </div>
+  <div class="code">
+    <div class="code-head"><span>3. Every 2 hours: load the flagged transactions</span><button class="copy" type="button">Copy</button></div>
+<pre>INSERT INTO edp_anomaly.anomaly_transactions
+  (run_date, run_id, client_id, window_start, metrics, max_z,
+   claim_id, received_ts, pharmacy_id, prescriber_id, member_id, drug_ndc,
+   quantity, days_supply, paid_amount, claim_status, claim_z)
+WITH flagged AS (                                       <span class="cm">-- one row per client window</span>
+  SELECT client_id, window_start,
+         ARRAY_AGG(metric) AS metrics, MAX(ABS(z)) AS max_z,
+         LOGICAL_AND(metric = 'reject_rate') AS rejects_only
+  FROM edp_anomaly.anomalies
+  WHERE run_id = @run_id
+  GROUP BY client_id, window_start
+)
+SELECT DATE(@window_start), @run_id, f.client_id, f.window_start, f.metrics, f.max_z,
+       c.claim_id, c.received_ts, c.pharmacy_id, c.prescriber_id, c.member_id, c.drug_ndc,
+       c.quantity, c.days_supply, c.paid_amount, c.claim_status,
+       SAFE_DIVIDE(SAFE_DIVIDE(c.paid_amount, c.quantity) - n.mean_ppu, n.stddev_ppu) AS claim_z
+FROM flagged f
+JOIN edp.claims c
+  ON c.client_id = f.client_id
+ AND c.received_date = DATE(@window_start)
+ AND c.received_ts &gt;= f.window_start
+ AND c.received_ts &lt;  TIMESTAMP_ADD(f.window_start, INTERVAL 2 HOUR)
+LEFT JOIN edp_anomaly.ndc_baseline n ON n.drug_ndc = c.drug_ndc   <span class="cm">-- daily, like baseline_stats</span>
+WHERE NOT f.rejects_only OR c.claim_status = 'REJECTED';</pre>
+  </div>
+</section>
+
+<section aria-labelledby="t-h">
+  <h2 id="t-h">Tables</h2>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Table</th><th>Where</th><th>Written by</th><th>Holds</th><th>Layout</th></tr></thead>
+      <tbody>
+        <tr><td>edp.claims</td><td data-label="Where">BigQuery, VPC 1</td><td data-label="Written by">Existing 2-hour load</td><td data-label="Holds">All claims</td><td data-label="Layout">Partition by day, cluster by client. Require a partition filter.</td></tr>
+        <tr><td>baseline_stats</td><td data-label="Where">BigQuery, VPC 1</td><td data-label="Written by">Daily SQL job</td><td data-label="Holds">Mean, stddev and count per client, metric, weekday and slot</td><td data-label="Layout">Cluster by client. Small: clients × 7 × 12 × 3 rows.</td></tr>
+        <tr><td>ndc_baseline</td><td data-label="Where">BigQuery, VPC 1</td><td data-label="Written by">Daily SQL job</td><td data-label="Holds">Paid amount mean and stddev per drug, for the claim z-score</td><td data-label="Layout">One row per NDC</td></tr>
+        <tr><td>anomalies</td><td data-label="Where">BigQuery, VPC 1</td><td data-label="Written by">2-hour batch job</td><td data-label="Holds">One row per client, window and metric that flagged</td><td data-label="Layout">Partition by window date, cluster by client and run</td></tr>
+        <tr><td>anomaly_transactions</td><td data-label="Where">BigQuery, VPC 1</td><td data-label="Written by">2-hour batch job</td><td data-label="Holds">Every claim behind a flag, with its claim z-score</td><td data-label="Layout">Partition by run date, cluster by client and window. Policy tags on member and prescriber ids. Expire after the review period.</td></tr>
+        <tr><td>run_log</td><td data-label="Where">BigQuery, VPC 1</td><td data-label="Written by">Batch job</td><td data-label="Holds">Run id, window, status, counts, start and end times</td><td data-label="Layout">One row per run</td></tr>
+        <tr><td>reviews</td><td data-label="Where">Cloud SQL, VPC 2</td><td data-label="Written by">Anomaly API</td><td data-label="Holds">Status per claim or anomaly: new, reviewed, confirmed, false positive. Reviewer, note, time.</td><td data-label="Layout">Keyed by run id and claim id. Kept out of BigQuery because row-by-row updates are slow and limited there.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="j-h">
+  <h2 id="j-h">JDBC from the web app</h2>
+  <ul class="facts">
+    <li><b>There is no live connection to BigQuery.</b> A JDBC connection to BigQuery is a client object. Each query runs as a BigQuery job over HTTPS, typically 1 to 3 seconds. Keep the pool small and cache results per run.</li>
+    <li><b>The route is Private Service Connect.</b> The driver calls bigquery.googleapis.com. A private DNS zone in VPC 2 resolves it to the PSC endpoint. Add bigquerystorage.googleapis.com too, because the driver can use the Storage Read API for larger results.</li>
+    <li><b>Jobs run and bill in the app project.</b> ProjectId in the URL is where queries run. Use fully qualified table names to read from the EDP project.</li>
+    <li><b>Always use parameters and partition filters.</b> Every UI query names a run date or window, so it reads a few MB, not the table.</li>
+    <li><b>Read-only.</b> The API only selects from BigQuery. Review decisions go to Cloud SQL.</li>
+  </ul>
+  <div class="two">
+    <div class="code">
+      <div class="code-head"><span>application.yml</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm"># Google's BigQuery JDBC driver. Check the driver class and property
+# names against the driver version you install.</span>
+spring:
+  datasource:
+    driver-class-name: com.simba.googlebigquery.jdbc.Driver
+    url: &gt;-
+      jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;
+      ProjectId=app-project;OAuthType=3;Timeout=60;
+      EnableHighThroughputAPI=1
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+<span class="cm"># OAuthType=3 uses Application Default Credentials, which
+# GKE Workload Identity provides. No key files.</span></pre>
+    </div>
+    <div class="code">
+      <div class="code-head"><span>Repository query</span><button class="copy" type="button">Copy</button></div>
+<pre>String sql = """
+    SELECT claim_id, received_ts, pharmacy_id, drug_ndc,
+           quantity, days_supply, paid_amount, claim_status, claim_z
+    FROM `edp-project.edp_anomaly.anomaly_transactions`
+    WHERE run_date = ? AND client_id = ? AND window_start = ?
+    ORDER BY claim_z DESC, claim_id
+    LIMIT 100 OFFSET ?
+    """;
+
+List&lt;FlaggedClaim&gt; rows = jdbc.query(sql, flaggedClaimMapper,
+    runDate, clientId, Timestamp.from(windowStart), page * 100);
+<span class="cm">// Merge review status from Cloud SQL before returning to the UI.</span></pre>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="s-h">
+  <h2 id="s-h">JDBC to BigQuery, or a copy in Postgres</h2>
+  <p class="lede">Start with JDBC to BigQuery and the Redis cache. Add a Postgres copy only if reviewers find it slow or usage grows. The API's endpoints stay the same either way.</p>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Compare</th><th>JDBC to BigQuery (start here)</th><th>Copy each run into Cloud SQL Postgres</th></tr></thead>
+      <tbody>
+        <tr><td>UI speed</td><td data-label="JDBC to BigQuery">1 to 3 seconds per uncached query, sub-second with BI Engine</td><td data-label="Postgres copy">Milliseconds</td></tr>
+        <tr><td>Claim data in VPC 2</td><td data-label="JDBC to BigQuery">No, only what's on screen</td><td data-label="Postgres copy">Yes, the review working set, for example 90 days</td></tr>
+        <tr><td>Review status filters</td><td data-label="JDBC to BigQuery">The API merges BigQuery rows with status from Cloud SQL</td><td data-label="Postgres copy">One SQL query</td></tr>
+        <tr><td>Extra moving parts</td><td data-label="JDBC to BigQuery">Redis cache</td><td data-label="Postgres copy">A loader that pulls each run through PSC, retention, reconciliation</td></tr>
+        <tr><td>Cost per click</td><td data-label="JDBC to BigQuery">A BigQuery query, usually a few MB</td><td data-label="Postgres copy">None</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="lede">If you add the copy, the loader lives in VPC 2. It pulls the run's rows from BigQuery on run-complete, because VPC 1 has no network path to Cloud SQL's private IP.</p>
+</section>
+
+<section aria-labelledby="r-h">
+  <h2 id="r-h">How the web UI refreshes</h2>
+  <ul class="facts">
+    <li><b>The push comes from the run, not from BigQuery.</b> When the batch job finishes, it publishes run-complete to Pub/Sub. The refresh notifier in VPC 2 pulls it through PSC and sends a server-sent event to each open browser.</li>
+    <li><b>The browser then fetches.</b> It shows "New results" with the run time and reloads the feed from the API. The API queries BigQuery once per run and filter, then serves from Redis.</li>
+    <li><b>Polling covers gaps.</b> Browsers also call <code>/api/runs/latest</code> every 5 minutes. That call reads one cached value, so it costs nothing.</li>
+    <li><b>Set the load balancer for long-lived requests.</b> Server-sent events need the backend service timeout raised, for example to an hour, and a heartbeat from the server every 30 seconds. With the default timeout the stream drops after 30 seconds.</li>
+    <li><b>Always show "data as of".</b> Taken from run_log, so a reviewer can see a late run.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="b-h">
+  <h2 id="b-h">Where the batch job runs</h2>
+  <p class="lede">In both cases the SQL runs inside BigQuery in VPC 1, so claims never move. The difference is who schedules it, retries it and holds the permissions.</p>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Compare</th><th>BigQuery scheduled query (recommended to start)</th><th>Cloud Workflows in VPC 1</th><th>Spring Batch CronJob in VPC 2</th></tr></thead>
+      <tbody>
+        <tr><td>Something to deploy</td><td data-label="Scheduled query">Nothing. The SQL script plus a schedule.</td><td data-label="Workflows in VPC 1">A workflow definition and an Eventarc trigger</td><td data-label="CronJob in VPC 2">A Java job, image and CronJob</td></tr>
+        <tr><td>Starts on</td><td data-label="Scheduled query">A clock, 20 minutes after each even hour. The script checks the window is loaded and fails cleanly if not.</td><td data-label="Workflows in VPC 1">Load-complete event, so it never runs on a partial load</td><td data-label="CronJob in VPC 2">A clock every 2 hours, with its own freshness check</td></tr>
+        <tr><td>Crosses PSC</td><td data-label="Scheduled query">Only the run-complete notification</td><td data-label="Workflows in VPC 1">Only the run-complete message</td><td data-label="CronJob in VPC 2">Job submission and status polling every run</td></tr>
+        <tr><td>Permissions</td><td data-label="Scheduled query">Write to edp_anomaly stays inside EDP</td><td data-label="Workflows in VPC 1">Write to edp_anomaly stays inside EDP</td><td data-label="CronJob in VPC 2">An app-project account needs write on edp_anomaly and read on edp.claims</td></tr>
+        <tr><td>Retries and alerts</td><td data-label="Scheduled query">Failure notification. Rerun by hand or let the next run rescore.</td><td data-label="Workflows in VPC 1">Built-in retries</td><td data-label="CronJob in VPC 2">Spring Batch job repository and your own alerts</td></tr>
+        <tr><td>Version control</td><td data-label="Scheduled query">Keep the script in Git and deploy with Terraform</td><td data-label="Workflows in VPC 1">Git</td><td data-label="CronJob in VPC 2">Git</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="rec">
+    <h3>Recommendation</h3>
+    <p>Start with a BigQuery scheduled query in VPC 1. The z-score is plain SQL, so nothing else needs to run there. Move to Cloud Workflows or Dataform when you need a load-complete trigger, automatic retries or multi-step dependencies. Use the Spring Batch CronJob only if the app team can't deploy into the EDP project. The SQL is the same in all three, so you can switch later. The web app stays read-only toward BigQuery: JDBC reads plus one Pub/Sub subscription.</p>
+  </div>
+</section>
+
+<section aria-labelledby="a-h">
+  <h2 id="a-h">Network and access</h2>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Service account</th><th>Runs</th><th>Permissions</th></tr></thead>
+      <tbody>
+        <tr><td>sa-zscore-job</td><td data-label="Runs">The scheduled query, VPC 1</td><td data-label="Permissions">BigQuery Data Viewer on edp.claims, Data Editor on edp_anomaly, Job User in the EDP project. The BigQuery Data Transfer service agent needs Pub/Sub Publisher on the notification topic.</td></tr>
+        <tr><td>sa-anomaly-api</td><td data-label="Runs">Anomaly API, VPC 2</td><td data-label="Permissions">BigQuery Data Viewer on edp_anomaly only, Job User and Read Session User in the app project, Cloud SQL Client</td></tr>
+        <tr><td>sa-notifier</td><td data-label="Runs">Refresh notifier, VPC 2</td><td data-label="Permissions">Pub/Sub Subscriber on the app's subscription</td></tr>
+        <tr><td>sa-batch-app <span class="sub">Only for the CronJob option</span></td><td data-label="Runs">Spring Batch CronJob, VPC 2</td><td data-label="Permissions">Job User in the app project, Data Viewer on edp.claims, Data Editor on edp_anomaly</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="facts">
+    <li><b>PSC endpoint for Google APIs in VPC 2</b>, with a private DNS zone for googleapis.com covering BigQuery, the BigQuery Storage API and Pub/Sub.</li>
+    <li><b>No VPC peering is needed.</b> BigQuery and Pub/Sub are Google APIs, so VPC 2 reaches them through its own PSC endpoint.</li>
+    <li><b>If VPC 1 is inside a VPC Service Controls perimeter</b>, add ingress rules for the VPC 2 service accounts to BigQuery and Pub/Sub, and use the vpc-sc bundle on the endpoint.</li>
+    <li><b>Data access audit logs</b> record every JDBC query against anomaly_transactions with the service account. Add the reviewer id as a job label so reads trace to a person.</li>
+  </ul>
+</section>
+
+<p class="foot">Thresholds, volumes and names on this page are examples. Confirm PSC bundles, perimeter rules and roles with cloud security, and the JDBC driver properties against the version you install.</p>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  var svg=document.getElementById("arch");
+  function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs){e.setAttribute(k,attrs[k]);}if(parent){parent.appendChild(e);}return e;}
+  function txt(parent,x,y,s,cls,anchor){var t=el("text",{x:x,y:y,"class":cls},parent);if(anchor){t.setAttribute("text-anchor",anchor);}t.textContent=s;return t;}
+
+  var defs=el("defs",{},svg);
+  [["mk","mk"],["mk-on","mk-on"]].forEach(function(m){
+    var mk=el("marker",{id:m[0],viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},defs);
+    el("path",{d:"M0,0 L10,5 L0,10 z","class":m[1]},mk);
+  });
+
+  el("rect",{x:8,y:10,width:150,height:620,rx:12,"class":"zone usr"},svg);
+  txt(svg,22,36,"People","zlab");
+  el("rect",{x:170,y:10,width:636,height:620,rx:12,"class":"zone app"},svg);
+  txt(svg,190,36,"VPC 2 · Application project","zlab");
+  txt(svg,190,54,"Web app on GKE, cache, review database","zsub");
+  el("rect",{x:812,y:10,width:400,height:620,rx:12,"class":"zone edp"},svg);
+  txt(svg,826,36,"VPC 1 · EDP project","zlab");
+  txt(svg,826,54,"BigQuery, batch job, run events","zsub");
+
+  var X={A:190,B:376,C:562,D:826,E:1018,U:20};
+  var W={A:160,B:160,C:150,D:180,E:180,U:126};
+  var Y=[90,190,290,390,490],H=60;
+  function N(id,col,r,c,t,s,tag,opt,w){return {id:id,x:X[col],y:Y[r],w:w||W[col],h:H,c:c,t:t,s:s,tag:tag,opt:opt};}
+  var NODES=[
+    N("user","U",1,"ui","Reviewer","Browser"),
+    N("ui","A",0,"ui","React web UI","Static files in GCS"),
+    N("lb","A",1,"net","Internal HTTPS LB","IAP · Cloud Armor"),
+    N("notifier","A",3,"cmp","Refresh notifier","Pub/Sub pull · SSE","GKE"),
+    N("cache","B",0,"data","Memorystore Redis","Results by run id"),
+    N("api","B",1,"cmp","Anomaly API","Spring Boot · JDBC","GKE"),
+    N("sql","B",2,"data","Cloud SQL Postgres","Review status · notes"),
+    N("cron","C",1,"cmp","Spring Batch job","Optional app trigger","GKE",true),
+    N("sched","D",0,"flow","Scheduled query","Every 2 hours, built in"),
+    N("claims","E",0,"data","edp.claims","Loaded every 2 hours","BQ"),
+    N("zjob","D",1,"cmp","Z-score SQL job","Total the window, compare with baseline, flag |z| ≥ 3","BQ",false,372),
+    N("anoms","D",2,"data","anomalies","Client-window z-score hits","BQ"),
+    N("baseline","E",2,"data","baseline_stats","Mean · stddev, 8 weeks","BQ"),
+    N("pubsub","D",3,"flow","Pub/Sub","anomaly-run-complete"),
+    N("txns","E",3,"data","anomaly_transactions","Flagged claims to review","BQ")
+  ];
+  var ZONE={};NODES.forEach(function(n){ZONE[n.id]=n.id==="user"?"usr":(n.x>=812?"edp":"app");});ZONE.psc="psc";
+
+  var EDGES={
+    p_user_lb:{d:"M146,220 H190",k:"req"},
+    p_lb_ui:{d:"M270,190 V150",k:"req"},
+    p_lb_api:{d:"M350,220 H376",k:"req"},
+    p_api_cache:{d:"M456,190 V150",k:"req"},
+    p_api_sql:{d:"M456,250 V290",k:"req"},
+    p_jdbc_anoms:{d:"M524,250 V270 H770 V320 H826",k:"req",lab:[640,264,"JDBC","middle"]},
+    p_jdbc_txns:{d:"M510,250 V278 H760 V470 H1108 V450",k:"req",lab:[940,486,"JDBC","middle"]},
+    p_cron_zjob:{d:"M712,220 H826",k:"req",lab:[765,212,"SQL","middle"]},
+    p_sched_zjob:{d:"M916,150 V190",k:"req"},
+    p_claims_zjob:{d:"M1108,150 V190",k:"data"},
+    p_baseline_zjob:{d:"M1108,290 V250",k:"data"},
+    p_zjob_anoms:{d:"M916,250 V290",k:"data"},
+    p_anoms_txns:{d:"M1006,336 H1012 V410 H1018",k:"data"},
+    p_txns_pub:{d:"M1018,430 H1006",k:"evt"},
+    p_pub_notifier:{d:"M826,420 H350",k:"evt",lab:[480,413,"run complete","middle"]},
+    p_notifier_lb:{d:"M270,390 V250",k:"evt",lab:[278,326,"SSE","start"]},
+    p_claims_baseline:{d:"M1198,120 H1205 V320 H1198",k:"data",lab:[1190,272,"daily","end"]}
+  };
+
+  var edgeLayer=el("g",{},svg),nodeLayer=el("g",{},svg),labelLayer=el("g",{},svg);
+  var edgeEls={},labEls={},nodeEls={};
+
+  var ps=el("g",{"class":"node strip","data-id":"psc"},nodeLayer);
+  el("rect",{x:730,y:70,width:70,height:555,rx:8,"class":"tint cat-net"},ps);
+  el("rect",{x:730,y:70,width:70,height:555,rx:8,"class":"cat-net",style:"fill:none;stroke-width:1.3;stroke-dasharray:5 3"},ps);
+  var pt=txt(ps,769,552,"Private Service Connect","strip-t","middle");
+  pt.setAttribute("transform","rotate(-90 769 552)");
+  nodeEls.psc=ps;
+
+  Object.keys(EDGES).forEach(function(id){
+    edgeEls[id]=el("path",{d:EDGES[id].d,"class":"edge "+EDGES[id].k,"marker-end":"url(#mk)"},edgeLayer);
+    var l=EDGES[id].lab;if(l){labEls[id]=txt(labelLayer,l[0],l[1],l[2],"elab",l[3]);}
+  });
+
+  NODES.forEach(function(n){
+    var g=el("g",{"class":"node"+(n.opt?" opt":"")},nodeLayer);
+    el("rect",{x:n.x,y:n.y,width:n.w,height:n.h,rx:8,"class":"box cat-"+n.c},g);
+    var ty=n.y+n.h/2-3,sy=n.y+n.h/2+13;
+    el("circle",{cx:n.x+14,cy:ty-4,r:4,"class":"cat-"+n.c},g);
+    txt(g,n.x+24,ty,n.t,"ntitle");
+    txt(g,n.x+24,sy,n.s,"nsub");
+    if(n.tag){txt(g,n.x+n.w-9,n.y+14,n.tag,"ntag","end");}
+    nodeEls[n.id]=g;
+  });
+  var ring=el("circle",{id:"ring",r:11,cx:-50,cy:-50},svg);
+  var packet=el("circle",{id:"packet",r:6,cx:-50,cy:-50},svg);
+
+  var FLOWS=[
+    {name:"2-hour batch job",steps:[
+      {p:null,n:["claims"],t:"New window lands",d:"About 830k claims for the last 2 hours append to today's partition of edp.claims."},
+      {p:"p_sched_zjob",n:["sched","zjob"],t:"Scheduled query fires",d:"A BigQuery scheduled query runs 20 minutes after each even hour. Nothing is deployed for it. The script first checks the window is loaded against the expected volume, and fails cleanly if not."},
+      {p:"p_claims_zjob",n:["claims","zjob"],t:"Total up the window",d:"The job reads one partition and only the new 2 hours, then totals claim count, paid amount and reject rate per client."},
+      {p:"p_baseline_zjob",n:["baseline","zjob"],t:"Compare with the baseline",d:"For each client and metric it looks up the mean and stddev for the same weekday and 2-hour slot, and computes z = (observed − mean) ÷ stddev."},
+      {p:"p_zjob_anoms",n:["zjob","anoms"],t:"Write anomalies",d:"Every client and metric with |z| of 3 or more is written to anomalies with the run id. 5 or more is high severity."},
+      {p:"p_anoms_txns",n:["anoms","txns"],t:"Load flagged transactions",d:"A second statement joins each flagged client window back to edp.claims and inserts those claims, with their own claim z-score, into anomaly_transactions."},
+      {p:"p_txns_pub",n:["txns","pubsub"],t:"Mark the run complete",d:"The script writes run_log, and the schedule's Pub/Sub notification announces the run with its status. No claim data is in the message."},
+      {p:"p_claims_baseline",n:["claims","baseline"],t:"Once a day: rebuild the baseline",d:"A separate daily job recomputes baseline_stats from the last 8 weeks, so each 2-hour run reads a small stats table, not 8 weeks of claims."}
+    ]},
+    {name:"Batch from app (option)",steps:[
+      {p:"p_cron_zjob",n:["cron","psc","zjob"],t:"CronJob submits the SQL",d:"A Kubernetes CronJob running Spring Batch fires every 2 hours, checks run_log for a fresh load, and submits the same SQL through PSC. BigQuery still does the work in VPC 1."},
+      {p:"p_claims_zjob",n:["claims","zjob"],t:"Total up the window",d:"Same SQL, same data. No claims move to VPC 2."},
+      {p:"p_baseline_zjob",n:["baseline","zjob"],t:"Compare with the baseline",d:"Same z-score calculation."},
+      {p:"p_zjob_anoms",n:["zjob","anoms"],t:"Write anomalies",d:"The job runs as the app's service account, so it needs write access to edp_anomaly."},
+      {p:"p_anoms_txns",n:["anoms","txns"],t:"Load flagged transactions",d:"Second statement, same as the recommended path."},
+      {p:"p_cron_zjob",r:true,n:["zjob","psc","cron"],t:"Job status returns",d:"Spring Batch polls the BigQuery job until it finishes, records the run and retries on failure. It then tells the notifier directly, or publishes run-complete itself."}
+    ]},
+    {name:"Web UI refresh",steps:[
+      {p:"p_pub_notifier",n:["pubsub","psc","notifier"],t:"Run complete reaches VPC 2",d:"The refresh notifier pulls the message from Pub/Sub through the PSC endpoint."},
+      {p:"p_notifier_lb",n:["notifier","lb"],t:"Push to open browsers",d:"It sends a server-sent event with the run id and counts through the load balancer to every connected browser."},
+      {p:"p_user_lb",r:true,n:["lb","user"],t:"Browser shows new results",d:"The UI shows \"New results: 14 anomalies, data as of 10:00\" and reloads the feed. Browsers that missed the event poll every 5 minutes."},
+      {p:"p_user_lb",n:["user","lb"],t:"Fetch the feed",d:"The browser requests the latest anomalies."},
+      {p:"p_lb_api",n:["lb","api"],t:"API request",d:"GET /api/anomalies?run=latest. The API works out which clients this reviewer can see."},
+      {p:"p_api_cache",n:["api","cache"],t:"Check the cache",d:"Results only change when a run finishes, so they are cached by run id. Most requests stop here."},
+      {p:"p_jdbc_anoms",n:["api","psc","anoms"],t:"JDBC query on a cache miss",d:"JdbcTemplate runs a parameterized SELECT on anomalies through the BigQuery JDBC driver. bigquery.googleapis.com resolves to the PSC endpoint."},
+      {p:"p_jdbc_anoms",r:true,n:["anoms","psc","api"],t:"Rows come back",d:"Usually within 1 to 3 seconds. Cached until the next run."}
+    ]},
+    {name:"Review transactions",steps:[
+      {p:"p_user_lb",n:["user","lb"],t:"Open an anomaly",d:"The reviewer clicks an anomaly in the feed."},
+      {p:"p_lb_api",n:["lb","api"],t:"Request its transactions",d:"GET /api/anomalies/{id}/transactions?page=0"},
+      {p:"p_jdbc_txns",n:["api","psc","txns"],t:"JDBC query",d:"SELECT from anomaly_transactions for one run date, client and window, ordered by claim z-score, 100 rows a page. Partitioning and clustering keep it to a few MB."},
+      {p:"p_jdbc_txns",r:true,n:["txns","psc","api"],t:"Rows come back",d:"Member and prescriber ids arrive masked unless the reviewer's role allows clear values."},
+      {p:"p_api_sql",n:["api","sql"],t:"Add review status",d:"New, reviewed, confirmed or false positive, for each claim, from Cloud SQL."},
+      {p:"p_api_sql",n:["api","sql"],t:"Save the decision",d:"The reviewer's decision and note are written to Cloud SQL with an audit trail. BigQuery is never updated row by row."}
+    ]}
+  ];
+
+  var tabs=document.getElementById("tabs"),list=document.getElementById("steplist"),playBtn=document.getElementById("play");
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var st={f:0,i:0,playing:!reduce,raf:0,timer:0};
+
+  FLOWS.forEach(function(f,fi){
+    var b=document.createElement("button");b.type="button";b.textContent=f.name;b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",function(){setFlow(fi);});tabs.appendChild(b);
+  });
+
+  function whereOf(s){
+    if(s.n.indexOf("psc")>-1){return ["Through PSC",true];}
+    var z=s.n.map(function(id){return ZONE[id];});
+    if(z.indexOf("usr")>-1){return ["Browser to VPC 2",false];}
+    if(z.every(function(v){return v==="edp";})){return ["VPC 1 · EDP",false];}
+    return ["VPC 2 · App",false];
+  }
+
+  function setFlow(fi){
+    st.f=fi;
+    [].forEach.call(tabs.children,function(b,k){b.setAttribute("aria-pressed",String(k===fi));});
+    var f=FLOWS[fi],inN={},inE={};
+    f.steps.forEach(function(s){s.n.forEach(function(id){inN[id]=1;});if(s.p){inE[s.p]=1;}});
+    svg.classList.add("flowing");
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.toggle("inflow",!!inN[id]);});
+    Object.keys(edgeEls).forEach(function(id){edgeEls[id].classList.toggle("inflow",!!inE[id]);if(labEls[id]){labEls[id].classList.toggle("inflow",!!inE[id]);}});
+    list.innerHTML="";
+    f.steps.forEach(function(s,k){
+      var li=document.createElement("li"),b=document.createElement("button");b.type="button";
+      var no=document.createElement("span");no.className="no";no.textContent=String(k+1).padStart(2,"0");
+      var tt=document.createElement("span");tt.textContent=s.t;
+      b.appendChild(no);b.appendChild(tt);
+      b.addEventListener("click",function(){setPlaying(false);show(k,true);});
+      li.appendChild(b);list.appendChild(li);
+    });
+    show(0,true);
+  }
+  function clearTimers(){cancelAnimationFrame(st.raf);clearTimeout(st.timer);}
+  function place(p,f){var L=p.getTotalLength(),q=p.getPointAtLength(L*f);packet.setAttribute("cx",q.x);packet.setAttribute("cy",q.y);ring.setAttribute("cx",q.x);ring.setAttribute("cy",q.y);}
+  function hidePacket(){["cx","cy"].forEach(function(a){packet.setAttribute(a,-50);ring.setAttribute(a,-50);});}
+
+  function show(i,animate){
+    clearTimers();
+    var f=FLOWS[st.f],s=f.steps[i];st.i=i;
+    Object.keys(edgeEls).forEach(function(id){var on=id===s.p;edgeEls[id].classList.toggle("on",on);edgeEls[id].setAttribute("marker-end",on?"url(#mk-on)":"url(#mk)");});
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.toggle("on",s.n.indexOf(id)>-1);});
+    if(s.p){edgeLayer.appendChild(edgeEls[s.p]);}
+    document.getElementById("stepNo").textContent="Step "+(i+1)+" of "+f.steps.length;
+    var w=whereOf(s),we=document.getElementById("stepWhere");we.textContent=w[0];we.classList.toggle("psc",w[1]);
+    document.getElementById("stepTitle").textContent=s.t;
+    document.getElementById("stepText").textContent=s.d;
+    [].forEach.call(list.querySelectorAll("button"),function(b,k){if(k===i){b.setAttribute("aria-current","step");}else{b.removeAttribute("aria-current");}});
+    var cur=list.querySelector('[aria-current="step"]');
+    if(cur){var lt=cur.offsetTop-list.offsetTop;if(lt<list.scrollTop||lt>list.scrollTop+list.clientHeight-34){list.scrollTop=Math.max(0,lt-60);}}
+    if(!s.p){hidePacket();st.timer=setTimeout(done,1600);return;}
+    var p=edgeEls[s.p];
+    if(!animate||reduce){place(p,s.r?0:1);st.timer=setTimeout(done,reduce?2600:900);return;}
+    var L=p.getTotalLength(),dur=Math.min(2200,Math.max(800,L*3.2)),t0=null;
+    function tick(ts){
+      if(t0===null){t0=ts;}
+      var k=Math.min(1,(ts-t0)/dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      place(p,s.r?1-e:e);
+      if(k<1){st.raf=requestAnimationFrame(tick);}else{st.timer=setTimeout(done,650);}
+    }
+    st.raf=requestAnimationFrame(tick);
+  }
+  function done(){
+    if(!st.playing){return;}
+    var n=FLOWS[st.f].steps.length;
+    if(st.i<n-1){show(st.i+1,true);}else{st.timer=setTimeout(function(){show(0,true);},1400);}
+  }
+  function setPlaying(p){st.playing=p;playBtn.textContent=p?"Pause":"Play";}
+  playBtn.addEventListener("click",function(){if(st.playing){setPlaying(false);clearTimers();}else{setPlaying(true);show(st.i,true);}});
+  document.getElementById("next").addEventListener("click",function(){setPlaying(false);var n=FLOWS[st.f].steps.length;show((st.i+1)%n,true);});
+  document.getElementById("prev").addEventListener("click",function(){setPlaying(false);var n=FLOWS[st.f].steps.length;show((st.i-1+n)%n,true);});
+  playBtn.textContent=st.playing?"Pause":"Play";
+  setFlow(0);
+
+  [].forEach.call(document.querySelectorAll(".copy"),function(btn){
+    btn.addEventListener("click",function(){
+      var pre=btn.closest(".code").querySelector("pre"),t=pre.innerText;
+      function fin(ok){btn.textContent=ok?"Copied":"Text selected";setTimeout(function(){btn.textContent="Copy";},1500);}
+      function pick(){try{var r=document.createRange();r.selectNodeContents(pre);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}fin(false);}
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){fin(true);},pick);}else{pick();}
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

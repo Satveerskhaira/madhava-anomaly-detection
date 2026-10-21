@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Claims Anomaly Architecture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout concept: answer first, then an EDP | boundary | app map that switches between three flows, then reference tables and SQL. */
+:root{
+  --bg:#F5F7FA;
+  --surface:#FFFFFF;
+  --soft:#ECF0F5;
+  --ink:#16212C;
+  --muted:#56636F;
+  --line:#D6DDE5;
+  --edp:#2C4A7A;
+  --edp-tint:#E6EDF7;
+  --on-edp:#FFFFFF;
+  --app:#1A7365;
+  --app-tint:#E0F1ED;
+  --on-app:#FFFFFF;
+  --cross:#A44B08;
+  --cross-tint:#FBEAD6;
+  --on-cross:#FFFFFF;
+  --code-bg:#EEF2F6;
+  --cm:#66737F;
+  --f-display:'Schibsted Grotesk','Segoe UI',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E151C;
+    --surface:#16202A;
+    --soft:#1C2833;
+    --ink:#E5EAEF;
+    --muted:#9AA6B2;
+    --line:#2A3744;
+    --edp:#8FB2EA;
+    --edp-tint:#1A2A41;
+    --on-edp:#0E151C;
+    --app:#6FCDBA;
+    --app-tint:#14302B;
+    --on-app:#0E151C;
+    --cross:#F2A957;
+    --cross-tint:#3A2A15;
+    --on-cross:#0E151C;
+    --code-bg:#0B1118;
+    --cm:#8A96A2;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E151C;
+  --surface:#16202A;
+  --soft:#1C2833;
+  --ink:#E5EAEF;
+  --muted:#9AA6B2;
+  --line:#2A3744;
+  --edp:#8FB2EA;
+  --edp-tint:#1A2A41;
+  --on-edp:#0E151C;
+  --app:#6FCDBA;
+  --app-tint:#14302B;
+  --on-app:#0E151C;
+  --cross:#F2A957;
+  --cross-tint:#3A2A15;
+  --on-cross:#0E151C;
+  --code-bg:#0B1118;
+  --cm:#8A96A2;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1040px;margin-inline:auto;padding-inline:clamp(16px,4vw,32px);padding-block:28px 56px}
+main{display:flex;flex-direction:column;gap:48px}
+main>*{min-width:0}
+section{display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--f-display);line-height:1.2;text-wrap:balance;margin:0}
+h1{font-size:clamp(1.75rem,4.6vw,2.5rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.4rem;font-weight:700}
+h3{font-size:1.02rem;font-weight:700}
+p{margin:0}
+code{font-family:var(--f-mono);font-size:.87em;background:var(--soft);padding:1px 5px;border-radius:4px}
+.lede{color:var(--muted);max-width:68ch}
+button{font-family:var(--f-body)}
+button:focus-visible{outline:2px solid var(--edp);outline-offset:2px}
+
+/* header */
+.head{display:flex;flex-direction:column;gap:12px;padding-bottom:28px}
+.assume{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.assume li{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:13px;color:var(--muted)}
+.assume b{color:var(--ink);font-weight:600}
+
+/* answer */
+.answer{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:clamp(16px,3vw,26px)}
+.verdict{font:700 clamp(1.1rem,2.6vw,1.35rem)/1.35 var(--f-display);max-width:46ch;text-wrap:balance}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.trio>div{background:var(--soft);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.trio p{font-size:14px}
+.where{font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;padding:1px 8px;border-radius:999px}
+.where.edp{background:var(--edp-tint);color:var(--edp)}
+.where.app{background:var(--app-tint);color:var(--app)}
+
+/* flow switch */
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{font-weight:600;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 16px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--edp);border-color:var(--edp);color:var(--on-edp)}
+
+/* map */
+.map{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+@media (min-width:880px){.map{grid-template-columns:minmax(0,1fr) minmax(210px,.62fr) minmax(0,1fr)}}
+.zone{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column}
+.zone.edp{--z:var(--edp);--zt:var(--edp-tint);--on-z:var(--on-edp)}
+.zone.app{--z:var(--app);--zt:var(--app-tint);--on-z:var(--on-app)}
+.zone-head{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;padding:10px 14px;font-family:var(--f-display);background:var(--zt);color:var(--z)}
+.zone-head b{font-size:1rem}
+.zone-head span{font-size:12.5px}
+.nodes{display:flex;flex-direction:column;gap:8px;padding:10px}
+.node{border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--bg);display:flex;flex-direction:column;gap:3px;transition:opacity .15s,border-color .15s}
+.node.on{border-color:var(--z);box-shadow:0 0 0 1px var(--z);background:var(--surface)}
+.node.off{opacity:.5}
+.n-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.n-name{font-weight:600;font-size:14px}
+.n-body{font-size:13px;color:var(--muted)}
+.badge{background:var(--z);color:var(--on-z);font-size:11.5px;font-weight:600;border-radius:999px;padding:0 8px;min-width:20px;text-align:center;line-height:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge:empty{display:none}
+.boundary{--z:var(--cross);--zt:var(--cross-tint);--on-z:var(--on-cross);background:var(--cross-tint);border:1px dashed var(--cross);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;align-self:stretch;justify-content:center}
+.b-title{font:600 11.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--cross);text-align:center}
+.xing{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:3px;transition:opacity .15s,border-color .15s}
+.xing.on{border-color:var(--cross);box-shadow:0 0 0 1px var(--cross)}
+.xing.off{opacity:.5}
+.dir{font:500 11.5px var(--f-mono);color:var(--cross)}
+.b-note{font-size:12.5px;color:var(--ink);text-align:center}
+
+/* steps */
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+.steps li.x{border-color:var(--cross)}
+.steps li::before{content:counter(s);grid-row:1/3;width:26px;height:26px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font:600 13px var(--f-display);font-variant-numeric:tabular-nums}
+.steps li p{font-size:14.5px}
+.tag{justify-self:start;font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;padding:1px 8px;border-radius:999px}
+.tag.edp{background:var(--edp-tint);color:var(--edp)}
+.tag.app{background:var(--app-tint);color:var(--app)}
+.tag.x{background:var(--cross-tint);color:var(--cross)}
+
+/* tables */
+.tablewrap{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow-x:auto}
+.rt{width:100%;border-collapse:collapse;font-size:14px}
+.rt th{text-align:left;font:600 11.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);background:var(--soft)}
+.rt td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}
+.rt tr:last-child td{border-bottom:0}
+.rt td:first-child{font-weight:600}
+.sub{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:400}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600}
+.pill.no{background:var(--app-tint);color:var(--app)}
+.pill.yes{background:var(--soft);color:var(--muted)}
+.pill.avoid{background:var(--cross-tint);color:var(--cross)}
+@media (max-width:719px){
+  .tablewrap{border:0;background:none;overflow:visible}
+  .rt thead{display:none}
+  .rt,.rt tbody{display:flex;flex-direction:column;gap:10px}
+  .rt tr{display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  .rt td{display:block;border:0;padding:4px 0}
+  .rt tr:last-child td{border:0}
+  .rt td::before{content:attr(data-label);display:block;font:600 10.5px var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .rt td:first-child::before{display:none}
+}
+
+/* lists and callouts */
+.facts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.facts b{font-weight:600}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:32px 24px}
+.two>section{min-width:0}
+
+/* code */
+.code{border:1px solid var(--line);border-radius:10px;background:var(--code-bg);overflow:hidden;min-width:0}
+.code-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-bottom:1px solid var(--line);font:500 12px var(--f-mono);color:var(--muted)}
+.copy{font-weight:500;font-size:12px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 10px;cursor:pointer}
+pre{margin:0;padding:12px 14px;overflow-x:auto;font:12.5px/1.6 var(--f-mono);color:var(--ink);tab-size:2}
+pre .cm{color:var(--cm)}
+.foot{font-size:13px;color:var(--muted);max-width:68ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="head">
+  <h1>Claims Anomaly Architecture</h1>
+  <p class="lede">What runs in the EDP VPC, what runs in the application VPC, and which connections need to be live.</p>
+  <ul class="assume" aria-label="Assumptions">
+    <li><b>10M</b> claims a day</li>
+    <li><b>12</b> loads a day, about <b>830k</b> claims each</li>
+    <li>BigQuery data in the <b>EDP</b> VPC</li>
+    <li>UI and API in the <b>application</b> VPC</li>
+  </ul>
+</header>
+
+<main>
+
+<section class="answer" aria-labelledby="a-h">
+  <h2 id="a-h">Do the VPCs need a live connection to BigQuery?</h2>
+  <p class="verdict">No standing connection is needed. The app sends BigQuery a request when it needs an answer, and BigQuery replies over its API.</p>
+  <div class="trio">
+    <div>
+      <span class="where edp">Runs in EDP</span>
+      <h3>Detection</h3>
+      <p>Runs entirely inside BigQuery after each 2-hour load. The application VPC is not involved.</p>
+    </div>
+    <div>
+      <span class="where app">Runs in app, reads EDP</span>
+      <h3>Dashboard</h3>
+      <p>Reads a small anomalies table. It changes 12 times a day, so the app caches it per run and most page loads never reach BigQuery.</p>
+    </div>
+    <div>
+      <span class="where app">Runs in app, reads EDP</span>
+      <h3>Drill-down</h3>
+      <p>A live query when the analyst clicks, limited to one client, one window and one driver. Claims are shown on screen and never stored in the app.</p>
+    </div>
+  </div>
+  <p class="lede">The only traffic between the VPCs that nobody asks for is a run-complete message of about 1 KB, 12 times a day.</p>
+</section>
+
+<section aria-labelledby="map-h">
+  <h2 id="map-h">What happens, and where</h2>
+  <p class="lede">Pick a flow. The numbers on the boxes match the steps underneath.</p>
+  <div class="seg" role="group" aria-label="Choose a flow">
+    <button type="button" data-flow="batch" aria-pressed="true">Every 2 hours</button>
+    <button type="button" data-flow="dash" aria-pressed="false">Opening the dashboard</button>
+    <button type="button" data-flow="drill" aria-pressed="false">Drilling to a claim</button>
+  </div>
+
+  <div class="map" id="stage" data-flow="batch">
+    <div class="zone edp">
+      <div class="zone-head"><b>EDP VPC</b><span>BigQuery data and detection</span></div>
+      <div class="nodes">
+        <div class="node" data-batch="1, 3" data-drill="3">
+          <div class="n-top"><span class="n-name">Claims table</span><span class="badge"></span></div>
+          <p class="n-body"><code>claims</code> in BigQuery. Partitioned by day, clustered by client. Read in place, never copied out.</p>
+        </div>
+        <div class="node" data-batch="2">
+          <div class="n-top"><span class="n-name">Dataform workflow</span><span class="badge"></span></div>
+          <p class="n-body">Starts when the load finishes. Rolls up, scores and writes results.</p>
+        </div>
+        <div class="node" data-batch="3, 4">
+          <div class="n-top"><span class="n-name">Window rollup</span><span class="badge"></span></div>
+          <p class="n-body"><code>client_window_metrics</code>. One row per client, metric and 2-hour window. Aggregates only.</p>
+        </div>
+        <div class="node" data-batch="4" data-dash="3" data-drill="1">
+          <div class="n-top"><span class="n-name">Anomalies</span><span class="badge"></span></div>
+          <p class="n-body"><code>anomalies</code> and <code>anomaly_drivers</code>. A few rows per client per window.</p>
+        </div>
+        <div class="node" data-dash="3" data-drill="3">
+          <div class="n-top"><span class="n-name">Serving views</span><span class="badge"></span></div>
+          <p class="n-body">Authorized views with client filters and PHI masking. The only objects the app can read.</p>
+        </div>
+        <div class="node" data-batch="5">
+          <div class="n-top"><span class="n-name">Run log and topic</span><span class="badge"></span></div>
+          <p class="n-body">One <code>run_log</code> row and one Pub/Sub message per finished run.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="boundary">
+      <div class="b-title">VPC boundary</div>
+      <div class="xing" data-batch="5">
+        <div class="n-top"><span class="dir">EDP → App</span><span class="badge"></span></div>
+        <span class="n-name">Run-complete message</span>
+        <p class="n-body">Pub/Sub, about 1 KB. Run id, window, row counts. No claim data.</p>
+      </div>
+      <div class="xing" data-dash="3">
+        <div class="n-top"><span class="dir">App → EDP</span><span class="badge"></span></div>
+        <span class="n-name">Anomaly feed query</span>
+        <p class="n-body">One API call on a cache miss. Tens to hundreds of summary rows come back.</p>
+      </div>
+      <div class="xing" data-drill="3">
+        <div class="n-top"><span class="dir">App → EDP</span><span class="badge"></span></div>
+        <span class="n-name">Claim drill-down query</span>
+        <p class="n-body">One API call per click. At most 200 masked claim rows come back.</p>
+      </div>
+      <p class="b-note">Reached through Private Google Access or Private Service Connect. VPC peering is not needed.</p>
+    </div>
+
+    <div class="zone app">
+      <div class="zone-head"><b>Application VPC</b><span>UI, API and case data</span></div>
+      <div class="nodes">
+        <div class="node" data-dash="1, 5" data-drill="1, 4, 5">
+          <div class="n-top"><span class="n-name">React UI</span><span class="badge"></span></div>
+          <p class="n-body">Talks only to the API. It never calls BigQuery directly.</p>
+        </div>
+        <div class="node" data-batch="6" data-dash="1, 2, 3, 4" data-drill="1, 2, 3, 4">
+          <div class="n-top"><span class="n-name">API service</span><span class="badge"></span></div>
+          <p class="n-body">Cloud Run or GKE. Runs parameterized BigQuery queries and enforces which clients each person can see.</p>
+        </div>
+        <div class="node" data-batch="6" data-dash="2, 4" data-drill="1">
+          <div class="n-top"><span class="n-name">Cache keyed by run id</span><span class="badge"></span></div>
+          <p class="n-body">Holds the latest anomaly list. Disposable and rebuilt from BigQuery.</p>
+        </div>
+        <div class="node" data-dash="4" data-drill="5">
+          <div class="n-top"><span class="n-name">Case database</span><span class="badge"></span></div>
+          <p class="n-body">Postgres or Firestore. Status, assignee, notes and analyst labels.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ol class="steps" id="steps-batch">
+    <li><span class="tag edp">EDP VPC</span><p>The 2-hour load lands in <code>claims</code>. About 830k claims per load go into the day partition.</p></li>
+    <li><span class="tag edp">EDP VPC</span><p>A completion event starts the Dataform workflow. It checks the row count against expected volume first and waits if the load looks partial.</p></li>
+    <li><span class="tag edp">EDP VPC</span><p>The workflow rolls up only the new window, per client, into <code>client_window_metrics</code>.</p></li>
+    <li><span class="tag edp">EDP VPC</span><p>Scoring compares each client's window with the same weekday and hour over the past 8 weeks. The change is attributed to drug, pharmacy, prescriber and plan, and results go to <code>anomalies</code> and <code>anomaly_drivers</code>.</p></li>
+    <li class="x"><span class="tag x">Crosses the boundary</span><p>The workflow writes a <code>run_log</code> row and publishes a run-complete message to Pub/Sub. The app's API subscribes to it.</p></li>
+    <li><span class="tag app">App VPC</span><p>The API drops the cached feed from the previous run and can pre-load the new one.</p></li>
+  </ol>
+
+  <ol class="steps" id="steps-dash" hidden>
+    <li><span class="tag app">App VPC</span><p>An analyst opens the dashboard. The browser calls the API over HTTPS, and the API works out which clients that person may see.</p></li>
+    <li><span class="tag app">App VPC</span><p>The API looks in its cache for the current run id. A hit returns immediately with no call to BigQuery.</p></li>
+    <li class="x"><span class="tag x">Crosses the boundary</span><p>On a miss, the API sends one parameterized query for those clients to the anomalies serving view, over the BigQuery API.</p></li>
+    <li><span class="tag app">App VPC</span><p>The result is cached until the next run. The API adds case status (open, confirmed, dismissed) from the case database.</p></li>
+    <li><span class="tag app">App VPC</span><p>The UI shows the client-level feed sorted by severity, with a "data as of" time taken from the run.</p></li>
+  </ol>
+
+  <ol class="steps" id="steps-drill" hidden>
+    <li><span class="tag app">App VPC</span><p>The analyst opens an anomaly. The API returns the driver breakdown from the cached run result, or reads <code>anomaly_drivers</code> if the cache is empty.</p></li>
+    <li><span class="tag app">App VPC</span><p>The analyst picks a driver, such as one drug. The API fills a fixed query template. The driver column comes from an allow-list and every value is a query parameter.</p></li>
+    <li class="x"><span class="tag x">Crosses the boundary</span><p>The query goes to the claims serving view. BigQuery reads one client's slice of the day partition, masks PHI columns and stops at the byte cap.</p></li>
+    <li><span class="tag app">App VPC</span><p>Up to 200 claim rows go to the browser. The app shows them and does not store them.</p></li>
+    <li><span class="tag app">App VPC</span><p>Confirm, dismiss or a note is saved in the case database with the anomaly id and the ids of the claims the analyst flagged.</p></li>
+  </ol>
+</section>
+
+<section aria-labelledby="c-h">
+  <h2 id="c-h">Every connection and whether it is live</h2>
+  <p class="lede">BigQuery has no connection to hold open. Each call is its own HTTPS request. A truly live dashboard would mean repeating queries, so the app caches per run instead.</p>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Connection</th><th>Direction</th><th>Standing connection?</th><th>How often</th><th>What moves</th></tr></thead>
+      <tbody>
+        <tr><td>Claims source to <code>claims</code></td><td data-label="Direction">Into EDP</td><td data-label="Standing connection?"><span class="pill no">No</span><span class="sub">Batch load</span></td><td data-label="How often">Every 2 hours</td><td data-label="What moves">About 830k claims per load. Upstream of this design.</td></tr>
+        <tr><td>Load finished to Dataform workflow</td><td data-label="Direction">Inside EDP</td><td data-label="Standing connection?"><span class="pill no">No</span><span class="sub">Event trigger</span></td><td data-label="How often">Every load</td><td data-label="What moves">A trigger only. No data leaves BigQuery.</td></tr>
+        <tr><td>Detection SQL on BigQuery tables</td><td data-label="Direction">Inside EDP</td><td data-label="Standing connection?"><span class="pill no">No</span><span class="sub">Scheduled jobs</span></td><td data-label="How often">Every load</td><td data-label="What moves">Reads the new window and the small rollup. Writes anomalies.</td></tr>
+        <tr><td>Run-complete message</td><td data-label="Direction">EDP to app</td><td data-label="Standing connection?"><span class="pill no">No</span><span class="sub">One Pub/Sub message</span></td><td data-label="How often">12 a day</td><td data-label="What moves">Run id, window, row counts. About 1 KB. No claim data.</td></tr>
+        <tr><td>Anomaly feed query</td><td data-label="Direction">App to EDP</td><td data-label="Standing connection?"><span class="pill no">No</span><span class="sub">One HTTPS request</span></td><td data-label="How often">On a cache miss, usually once per run per filter</td><td data-label="What moves">Tens to hundreds of summary rows.</td></tr>
+        <tr><td>Claim drill-down query</td><td data-label="Direction">App to EDP</td><td data-label="Standing connection?"><span class="pill no">No</span><span class="sub">One HTTPS request</span></td><td data-label="How often">Each analyst click</td><td data-label="What moves">Up to 200 masked claim rows, shown and not stored.</td></tr>
+        <tr><td>Browser to API</td><td data-label="Direction">Inside app</td><td data-label="Standing connection?"><span class="pill yes">Yes</span><span class="sub">Normal web session</span></td><td data-label="How often">Per action</td><td data-label="What moves">The UI never talks to BigQuery.</td></tr>
+        <tr><td>API to case database</td><td data-label="Direction">Inside app</td><td data-label="Standing connection?"><span class="pill yes">Yes</span><span class="sub">Connection pool</span></td><td data-label="How often">Per action</td><td data-label="What moves">Status, notes, labels, anomaly ids and flagged claim ids.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="n-h">
+  <h2 id="n-h">Network and access</h2>
+  <ul class="facts">
+    <li><b>BigQuery is an API, not a server inside a VPC.</b> The app calls <code>bigquery.googleapis.com</code>. The EDP VPC and the application VPC do not need peering for this design.</li>
+    <li><b>Private path.</b> Turn on Private Google Access on the app subnets, or create a Private Service Connect endpoint for Google APIs. Traffic stays on Google's network and needs no public IP.</li>
+    <li><b>VPC Service Controls.</b> If the EDP project sits inside a perimeter, add an ingress rule for the app's service account and use the restricted Google APIs address on the private path.</li>
+    <li><b>Identity and roles.</b> One service account for the API. Give it BigQuery Data Viewer on the serving dataset only, and BigQuery Job User on the project that runs the jobs. Authorized views read <code>claims</code> on its behalf, so the app has no access to the claims table itself.</li>
+    <li><b>PHI.</b> Policy tags mask member and prescriber identifiers by default, and clear values go only to roles that need them. Turn on data access audit logs and label each job with a hashed user id so a claim-level read can be traced to a person.</li>
+    <li><b>When peering would be needed.</b> Only if the app must call something other than BigQuery inside the EDP VPC, such as a service on GKE.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="d-h">
+  <h2 id="d-h">Where each piece of data lives</h2>
+  <p class="lede">Claims stay in BigQuery. Everything the app keeps is either disposable or owned by the app.</p>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Data</th><th>Lives in</th><th>Size</th><th>Copied?</th></tr></thead>
+      <tbody>
+        <tr><td>Claims (contains PHI)</td><td data-label="Lives in">BigQuery <code>claims</code>, EDP VPC</td><td data-label="Size">10M rows a day</td><td data-label="Copied?"><span class="pill no">Never</span><span class="sub">Read in place</span></td></tr>
+        <tr><td>Window rollup</td><td data-label="Lives in">BigQuery <code>client_window_metrics</code></td><td data-label="Size">One row per client, metric and window</td><td data-label="Copied?"><span class="pill yes">Aggregates only</span></td></tr>
+        <tr><td>Anomalies and drivers</td><td data-label="Lives in">BigQuery <code>anomalies</code>, <code>anomaly_drivers</code></td><td data-label="Size">A few rows per client per window</td><td data-label="Copied?"><span class="pill yes">Cached in app</span><span class="sub">Latest run only</span></td></tr>
+        <tr><td>Run log</td><td data-label="Lives in">BigQuery <code>run_log</code></td><td data-label="Size">One row per run</td><td data-label="Copied?"><span class="pill yes">Read by app</span></td></tr>
+        <tr><td>Case state</td><td data-label="Lives in">Case database, application VPC</td><td data-label="Size">One record per case</td><td data-label="Copied?"><span class="pill yes">Owned by app</span><span class="sub">Anomaly id and flagged claim ids, no claim contents</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Anomaly ids are a hash of client, window and metric. When a late claim changes a past window, the next run updates the same row, so cases and notes never split in two.</p>
+</section>
+
+<section aria-labelledby="s-h">
+  <h2 id="s-h">The detection SQL</h2>
+  <p class="lede">Shown for claim count. The real job repeats the scoring for paid amount, reject rate and days supply. Table and column names are placeholders. Windows are by arrival time, so a late claim lands in the window it arrives in.</p>
+
+  <div class="code">
+    <div class="code-head"><span>1. Roll up the new window</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm">-- Reads only the new rows in today's partition.</span>
+INSERT INTO edp_anomaly.client_window_metrics
+  (client_id, window_start, claim_count, paid_amount, reject_count)
+SELECT client_id, @window_start, COUNT(*), SUM(paid_amount),
+       COUNTIF(claim_status = 'REJECTED')
+FROM edp.claims
+WHERE received_date = DATE(@window_start)
+  AND received_ts &gt;= @window_start
+  AND received_ts &lt;  TIMESTAMP_ADD(@window_start, INTERVAL 2 HOUR)
+GROUP BY client_id;
+<span class="cm">-- A rerun deletes the window first so it is never counted twice.</span></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span>2. Score against the same weekday and hour</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm">-- Same weekday and hour over the past 8 weeks, from the small rollup.</span>
+WITH history AS (
+  SELECT n.client_id, n.window_start, n.claim_count AS observed, h.claim_count AS past
+  FROM edp_anomaly.client_window_metrics n
+  JOIN edp_anomaly.client_window_metrics h
+    ON h.client_id = n.client_id
+   AND h.window_start &lt;  n.window_start
+   AND h.window_start &gt;= TIMESTAMP_SUB(n.window_start, INTERVAL 56 DAY)
+   AND EXTRACT(DAYOFWEEK FROM h.window_start) = EXTRACT(DAYOFWEEK FROM n.window_start)
+   AND EXTRACT(HOUR FROM h.window_start)      = EXTRACT(HOUR FROM n.window_start)
+  WHERE n.window_start = @window_start
+),
+stats AS (
+  SELECT client_id, window_start, ANY_VALUE(observed) AS observed,
+         APPROX_QUANTILES(past, 100)[OFFSET(50)] AS median,
+         COUNT(*) AS weeks_of_history
+  FROM history
+  GROUP BY client_id, window_start
+),
+mad AS (
+  SELECT s.client_id, s.window_start,
+         APPROX_QUANTILES(ABS(h.past - s.median), 100)[OFFSET(50)] AS mad
+  FROM stats s
+  JOIN history h ON h.client_id = s.client_id AND h.window_start = s.window_start
+  GROUP BY s.client_id, s.window_start
+)
+SELECT s.client_id, s.window_start, 'claim_count' AS metric,
+       s.observed, s.median AS expected,
+       SAFE_DIVIDE(0.6745 * (s.observed - s.median), m.mad) AS robust_z
+FROM stats s
+JOIN mad m ON m.client_id = s.client_id AND m.window_start = s.window_start
+WHERE s.weeks_of_history &gt;= 4;
+<span class="cm">-- Flag when ABS(robust_z) &gt;= 3.5, then MERGE into anomalies on anomaly_id.
+-- When mad is 0 (flat history), robust_z is NULL. Fall back to a percent-change rule.</span></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span>3. Drill-down on the analyst's click</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="cm">-- One of four fixed templates. The driver column (drug_ndc here) comes from an
+-- allow-list in the API. Values are always query parameters.</span>
+SELECT claim_id, received_ts, pharmacy_id, drug_ndc, quantity, days_supply,
+       paid_amount, claim_status,
+       member_id                                  <span class="cm">-- masked by a policy tag</span>
+FROM edp_serving.v_claims_drilldown
+WHERE received_date = @window_date                <span class="cm">-- partition filter, required by the table</span>
+  AND received_ts &gt;= @window_start
+  AND received_ts &lt;  @window_end
+  AND client_id   = @client_id                    <span class="cm">-- clustering column</span>
+  AND drug_ndc    = @driver_value
+ORDER BY paid_amount DESC                         <span class="cm">-- order depends on the metric that fired</span>
+LIMIT 200;
+<span class="cm">-- Job settings: maximum_bytes_billed cap, labels {app: anomaly-ui, user: hashed id}.
+-- Table option: require_partition_filter = true, so a query without a date filter fails.</span></pre>
+  </div>
+</section>
+
+<section aria-labelledby="o-h">
+  <h2 id="o-h">Four ways to serve the dashboard</h2>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>Approach</th><th>Data copied</th><th>Standing connection?</th><th>Choose it when</th></tr></thead>
+      <tbody>
+        <tr><td>Ask BigQuery on demand, cache per run<span class="sub"><span class="pill no">Recommended</span></span></td><td data-label="Data copied">None</td><td data-label="Standing connection?">No</td><td data-label="Choose it when">You want no duplication and can accept a second or two on a cache miss.</td></tr>
+        <tr><td>Push anomaly summaries into the app database</td><td data-label="Data copied">Summary rows only, no claims</td><td data-label="Standing connection?">No. One small job per run.</td><td data-label="Choose it when">The feed must stay up when BigQuery is slow, or you want to join anomalies with cases in SQL. Drill-down stays live.</td></tr>
+        <tr><td>BI tool on BigQuery (Looker, Looker Studio)</td><td data-label="Data copied">None</td><td data-label="Standing connection?">Live per viewer, one query per dashboard load</td><td data-label="Choose it when">You need a quick internal dashboard before the app exists. Weak for case workflow and claim drill-down.</td></tr>
+        <tr><td>Replicate claims into the application VPC<span class="sub"><span class="pill avoid">Avoid</span></span></td><td data-label="Data copied">All claims</td><td data-label="Standing connection?">No, but it needs a full pipeline</td><td data-label="Choose it when">Rarely. It duplicates PHI and adds a second governance and audit boundary. Volume is small, about 830k rows per load, so governance is the cost.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="f-h">
+  <h2 id="f-h">When something goes wrong</h2>
+  <div class="tablewrap">
+    <table class="rt">
+      <thead><tr><th>If this happens</th><th>The system does this</th></tr></thead>
+      <tbody>
+        <tr><td>The 2-hour load is late or partial</td><td data-label="The system does this">The workflow compares the row count with expected volume before scoring and waits. The UI shows the last run time and the next expected run.</td></tr>
+        <tr><td>BigQuery is slow or unreachable</td><td data-label="The system does this">The feed comes from cache with a "data as of" time. Drill-down shows a retry message. Case work continues because it lives in the app database.</td></tr>
+        <tr><td>The run-complete message is missed</td><td data-label="The system does this">The cache expires after 2 hours 15 minutes anyway, and the API checks <code>run_log</code> every few minutes.</td></tr>
+        <tr><td>A late claim changes a past window</td><td data-label="The system does this">The next run rescores it and updates the same anomaly row. Open cases keep their notes.</td></tr>
+        <tr><td>A query scans too much</td><td data-label="The system does this">The claims table requires a partition filter and every job has a maximum bytes billed cap, so the query fails instead of running up cost.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="two">
+  <section aria-labelledby="r-h">
+    <h2 id="r-h">Build order</h2>
+    <ol class="steps">
+      <li><p><b>Detection in EDP.</b> Rollup, scoring, anomalies, drivers and run log. Backtest on 8 weeks of history before anyone sees an alert.</p></li>
+      <li><p><b>Access path.</b> Service account, serving views, masking and the perimeter rule. Run one test query from the app subnet.</p></li>
+      <li><p><b>The app.</b> API, anomaly feed, driver breakdown, claim list and case database.</p></li>
+      <li><p><b>Events and feedback.</b> Run-complete message and cache, alerts for high severity, and analyst labels kept for tuning.</p></li>
+    </ol>
+  </section>
+  <section aria-labelledby="q-h">
+    <h2 id="q-h">Decisions to confirm</h2>
+    <ul class="facts">
+      <li><b>Which project runs the query jobs?</b> Scans are billed to it. The app project keeps cost with the app team. The EDP project keeps it with the data owner.</li>
+      <li><b>Whose identity queries BigQuery?</b> Suggested default is one service account, with the API enforcing client access and every job labeled with the user. Use each analyst's own credentials only if compliance wants BigQuery itself to enforce access per person.</li>
+      <li><b>Is the EDP project inside a VPC Service Controls perimeter?</b> That decides the ingress rule.</li>
+      <li><b>Are member and prescriber identifiers shown clear or masked by default in the drill-down?</b></li>
+    </ul>
+  </section>
+</div>
+
+<p class="foot">Perimeter rules, roles and network endpoints depend on how your organization sets up Google Cloud. Confirm them with cloud security before building the access path.</p>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage');
+  var btns=[].slice.call(document.querySelectorAll('.seg button'));
+  var lists={
+    batch:document.getElementById('steps-batch'),
+    dash:document.getElementById('steps-dash'),
+    drill:document.getElementById('steps-drill')
+  };
+  function setFlow(f){
+    stage.setAttribute('data-flow',f);
+    btns.forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-flow')===f));});
+    Object.keys(lists).forEach(function(k){lists[k].hidden=(k!==f);});
+    [].forEach.call(stage.querySelectorAll('.node,.xing'),function(n){
+      var v=n.getAttribute('data-'+f);
+      n.classList.toggle('on',!!v);
+      n.classList.toggle('off',!v);
+      var b=n.querySelector('.badge');
+      if(b){b.textContent=v||'';}
+    });
+  }
+  btns.forEach(function(b){b.addEventListener('click',function(){setFlow(b.getAttribute('data-flow'));});});
+  setFlow('batch');
+
+  [].forEach.call(document.querySelectorAll('.copy'),function(btn){
+    btn.addEventListener('click',function(){
+      var pre=btn.closest('.code').querySelector('pre');
+      var txt=pre.innerText;
+      function done(ok){
+        btn.textContent=ok?'Copied':'Text selected';
+        setTimeout(function(){btn.textContent='Copy';},1500);
+      }
+      function pick(){
+        try{
+          var r=document.createRange();
+          r.selectNodeContents(pre);
+          var s=window.getSelection();
+          s.removeAllRanges();
+          s.addRange(r);
+        }catch(e){}
+        done(false);
+      }
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(function(){done(true);},pick);
+      }else{pick();}
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

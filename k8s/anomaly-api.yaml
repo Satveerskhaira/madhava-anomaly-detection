@@ -1,0 +1,82 @@
+# Example GKE manifests for the web app in VPC 2. Adjust names, images and replicas.
+# The BackendConfig matters: server-sent events need a long backend timeout,
+# otherwise the load balancer closes the stream after the default 30 seconds.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: anomaly-api
+  namespace: anomaly
+  annotations:
+    iam.gke.io/gcp-service-account: sa-anomaly-api@app-project.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: anomaly-notifier
+  namespace: anomaly
+  annotations:
+    iam.gke.io/gcp-service-account: sa-anomaly-notifier@app-project.iam.gserviceaccount.com
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: anomaly-api-backend
+  namespace: anomaly
+spec:
+  timeoutSec: 3600              # long-lived SSE connections
+  connectionDraining:
+    drainingTimeoutSec: 30
+  iap:
+    enabled: true
+    oauthclientCredentials:
+      secretName: iap-oauth-client
+  healthCheck:
+    requestPath: /actuator/health
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anomaly-api
+  namespace: anomaly
+  annotations:
+    cloud.google.com/backend-config: '{"default": "anomaly-api-backend"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  selector:
+    app: anomaly-api
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anomaly-api
+  namespace: anomaly
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: anomaly-api
+  template:
+    metadata:
+      labels:
+        app: anomaly-api
+    spec:
+      serviceAccountName: anomaly-api
+      containers:
+        - name: api
+          image: REGION-docker.pkg.dev/app-project/anomaly/anomaly-api:0.1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - { name: APP_PROJECT_ID, value: app-project }
+            - { name: EDP_PROJECT_ID, value: edp-project }
+            - { name: CLOUDSQL_INSTANCE, value: "app-project:us-central1:anomaly-reviews" }
+            - { name: API_SERVICE_ACCOUNT_DB_USER, value: "sa-anomaly-api@app-project.iam" }
+            - { name: REDIS_HOST, value: "10.0.0.3" }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8080 }
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { memory: 1Gi }
