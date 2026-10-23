@@ -67,6 +67,7 @@ A daily scheduled query rebuilds the baselines, so each 2-hour run reads only sm
 | [docs/operations.md](docs/operations.md) | Schedules, monitoring, alerts, runbook, backfill, cost |
 | [docs/testing-and-validation.md](docs/testing-and-validation.md) | Backtesting, data checks, threshold tuning, acceptance |
 | [docs/model-roadmap.md](docs/model-roadmap.md) | Next steps beyond z-score: BigQuery ML, custom library, client rules |
+| [docs/claim-surveillance-reject-anomalies.md](docs/claim-surveillance-reject-anomalies.md) | Reject-rate surveillance for account managers on MongoDB: z-score for rates, windows, sparse clients, batch rollups, UI |
 | [docs/decisions/](docs/decisions) | Architecture decision records |
 | [docs/open-questions.md](docs/open-questions.md) | Decisions still to make |
 | [docs/diagrams/](docs/diagrams) | Interactive, animated architecture pages. Open in a browser. |
