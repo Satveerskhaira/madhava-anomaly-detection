@@ -1,0 +1,7 @@
+edp_project_id = "edp-project"
+app_project_id = "app-project"
+region         = "us-central1"
+bq_location    = "US"
+app_network_id = "projects/app-project/global/networks/app-vpc"
+psc_ip         = "10.255.0.5"
+k8s_namespace  = "anomaly"

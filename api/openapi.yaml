@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: Anomaly Review API
+  version: 0.1.0
+  description: >
+    Read anomalies and flagged transactions produced by the 2-hour z-score job, and record
+    review decisions. Anomaly data is read from BigQuery over JDBC (cached per run);
+    review state lives in Cloud SQL. All endpoints require IAP sign-in; results are limited
+    to the clients the caller is entitled to see.
+servers:
+  - url: https://anomaly.internal.example/api
+paths:
+  /runs/latest:
+    get:
+      summary: Latest successful run
+      responses:
+        "200":
+          description: Run summary, used for "data as of" and refresh checks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+  /events:
+    get:
+      summary: Server-sent events stream
+      description: >
+        Emits `run-complete` when a new run is available and a `heartbeat` comment every 25 seconds.
+        Clients reconnect automatically; they also poll /runs/latest every 5 minutes.
+      responses:
+        "200":
+          description: Event stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+  /flags:
+    get:
+      summary: Anomaly feed, one item per flagged client window
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: clientId, in: query, schema: { type: string } }
+        - { name: severity, in: query, schema: { type: string, enum: [MEDIUM, HIGH] } }
+        - { name: status, in: query, schema: { type: string, enum: [NEW, IN_REVIEW, CONFIRMED, FALSE_POSITIVE, NO_ACTION] } }
+        - { name: savedViewId, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Flags, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Flag" }
+  /flags/{flagId}:
+    get:
+      summary: One flag with all metrics that crossed their threshold
+      parameters:
+        - { name: flagId, in: path, required: true, schema: { type: string } }
+        - { name: date, in: query, required: true, description: Window date (partition), schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Flag detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Flag" }
+  /flags/{flagId}/transactions:
+    get:
+      summary: Claims behind a flag, most unusual first
+      parameters:
+        - { name: flagId, in: path, required: true, schema: { type: string } }
+        - { name: date, in: query, required: true, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: unreviewedOnly, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: A page of 100 claims
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  page: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/FlaggedClaim" }
+  /flags/{flagId}/review:
+    put:
+      summary: Set flag status, assignee or note
+      parameters:
+        - { name: flagId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewUpdate" }
+      responses:
+        "204": { description: Saved }
+  /flags/{flagId}/transactions/{claimId}/review:
+    put:
+      summary: Set status or note on one claim
+      parameters:
+        - { name: flagId, in: path, required: true, schema: { type: string } }
+        - { name: claimId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewUpdate" }
+      responses:
+        "204": { description: Saved }
+components:
+  schemas:
+    Run:
+      type: object
+      properties:
+        runId: { type: string }
+        windowStart: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        anomalyCount: { type: integer }
+        flagCount: { type: integer }
+        flaggedTxnCount: { type: integer }
+    Metric:
+      type: object
+      properties:
+        metric: { type: string, enum: [claim_count, paid_amount, reject_rate] }
+        observed: { type: number }
+        mean: { type: number }
+        stddev: { type: number }
+        z: { type: number }
+        zThreshold: { type: number }
+        severity: { type: string, enum: [MEDIUM, HIGH] }
+    Flag:
+      type: object
+      properties:
+        flagId: { type: string }
+        clientId: { type: string }
+        windowStart: { type: string, format: date-time }
+        severity: { type: string, enum: [MEDIUM, HIGH] }
+        maxZ: { type: number }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/Metric" }
+        reviewStatus: { type: string }
+        assignee: { type: string, nullable: true }
+    FlaggedClaim:
+      type: object
+      properties:
+        claimId: { type: string }
+        receivedTs: { type: string, format: date-time }
+        pharmacyId: { type: string }
+        prescriberId: { type: string, description: Masked unless the caller's role allows clear values }
+        memberId: { type: string, description: Masked unless the caller's role allows clear values }
+        drugNdc: { type: string }
+        quantity: { type: number }
+        daysSupply: { type: integer }
+        paidAmount: { type: number }
+        claimStatus: { type: string }
+        claimZ: { type: number, nullable: true }
+        reviewStatus: { type: string }
+    ReviewUpdate:
+      type: object
+      properties:
+        status: { type: string }
+        assignee: { type: string }
+        note: { type: string, maxLength: 4000 }
